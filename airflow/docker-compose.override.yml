@@ -1,0 +1,5 @@
+# Local development overrides (minimal)
+# The catalog-ui service is served separately via Python HTTP server: serve.py
+# Frontend setup: cd c:\Users\spits\data-platform\catalog-ui && python serve.py
+# Then access at http://localhost:8002
+

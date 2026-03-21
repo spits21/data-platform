@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Catalog</title>
+<style>
+:root {
+  --primary: #2563eb;
+  --success: #16a34a;
+  --bg: #f5f5f5;
+  --surface: #ffffff;
+  --border: #e5e7eb;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --accent: #dbeafe;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  background: var(--text);
+  color: white;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-pip {
+  width: 8px;
+  height: 8px;
+  background: var(--primary);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+nav {
+  display: flex;
+  gap: 4px;
+}
+
+nav a {
+  color: #ccc;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-size: 14px;
+}
+
+nav a:hover {
+  color: white;
+  background: rgba(255,255,255,0.1);
+}
+
+nav a.active {
+  color: white;
+  background: rgba(255,255,255,0.15);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), #9333ea);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  min-height: calc(100vh - 100px);
+}
+
+.page {
+  display: none !important;
+}
+
+.page.active {
+  display: block !important;
+}
+
+/* ==== BROWSE PAGE ==== */
+.browse-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 20px;
+}
+
+.sidebar {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  height: fit-content;
+}
+
+.sidebar-section {
+  margin-bottom: 24px;
+}
+
+.sidebar-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.sidebar-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.sidebar-item:hover {
+  background: var(--accent);
+}
+
+.sidebar-item.active {
+  border-left-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.badge {
+  background: var(--border);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.content {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid var(--border);
+}
+
+.search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.filter-btn {
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.filter-btn:hover {
+  border-color: var(--primary);
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.results-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.asset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.asset-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 120px;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  align-items: start;
+}
+
+.asset-row:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.07);
+}
+
+.asset-row.selected {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.asset-icon {
+  font-size: 24px;
+  margin-top: 4px;
+}
+
+.asset-body {
+  min-width: 0;
+}
+
+.asset-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset-path {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.asset-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.asset-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  background: var(--accent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
+
+.status-green {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--success);
+}
+
+.status-blue {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary);
+}
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+/* ==== DETAIL PAGE ==== */
+.back-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  text-decoration: none;
+  cursor: pointer;
+  margin-bottom: 20px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.detail-container {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+}
+
+.detail-main {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid var(--border);
+}
+
+.detail-sidebar {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  height: fit-content;
+}
+
+.detail-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-icon {
+  font-size: 48px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.detail-info h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.detail-path {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.detail-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.detail-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.detail-tab {
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.detail-tab:hover {
+  color: var(--text);
+}
+
+.detail-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.schema-table th {
+  text-align: left;
+  padding: 10px;
+  background: var(--accent);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+}
+
+.schema-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.schema-table tr:hover {
+  background: var(--accent);
+}
+
+.col-name {
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.col-type {
+  font-family: monospace;
+  background: var(--accent);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  display: inline-block;
+}
+
+.sidebar-section-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-item-row {
+  margin-bottom: 12px;
+}
+
+.sidebar-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.sidebar-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sidebar-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.connect-options {
+  margin-bottom: 20px;
+}
+
+.option {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option:hover {
+  border-color: var(--primary);
+}
+
+.option.selected {
+  border-color: var(--primary);
+  background: rgba(37, 99, 235, 0.03);
+}
+
+.option-title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.option-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.btn-launch {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.btn-launch:hover {
+  opacity: 0.9;
+}
+
+/* ==== CHAT PAGE ==== */
+.chat-container {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+  height: calc(100vh - 250px);
+}
+
+.chat-main {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-main h2 {
+  margin-bottom: 8px;
+  font-size: 18px;
+}
+
+.chat-main-desc {
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.chat-sidebar {
+  background: #0f0f0f;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 16px;
+  border-bottom: 1px solid #222;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chat-badge {
+  margin-left: auto;
+  background: rgba(22, 163, 74, 0.2);
+  border: 1px solid rgba(22, 163, 74, 0.4);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  color: #4ade80;
+}
+
+.chat-context {
+  padding: 16px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
+  font-size: 11px;
+}
+
+.ctx-label {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ctx-item {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.ctx-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #0f0f0f;
+}
+
+.message {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.message.user {
+  flex-direction: row-reverse;
+}
+
+.msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.msg-avatar.ai {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  color: #888;
+}
+
+.msg-avatar.user {
+  background: var(--primary);
+  color: white;
+}
+
+.msg-bubble {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #ccc;
+  max-width: 280px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.message.user .msg-bubble {
+  background: #1e3a2a;
+  border-color: #2a4a35;
+  color: #a8d4b8;
+}
+
+.chat-input-area {
+  padding: 12px 0;
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input {
+  flex: 1;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #ccc;
+  font-size: 12px;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.chat-send {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.chat-send:hover {
+  opacity: 0.9;
+}
+
+.success-banner {
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.25);
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 12px;
+}
+
+.success-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.success-text {
+  flex: 1;
+}
+
+.success-text strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--success);
+}
+
+.success-text span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .browse-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-container {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==== LOGIN PAGE ==== */
+#login-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+}
+
+#login-screen.active {
+  display: flex;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 40px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.login-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 32px;
+}
+
+.login-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+.login-field {
+  margin-bottom: 16px;
+}
+
+.login-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.login-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.2s;
+}
+
+.login-btn:hover { opacity: 0.9; }
+
+.login-error {
+  color: #dc2626;
+  font-size: 13px;
+  margin-top: 12px;
+  text-align: center;
+  display: none;
+}
+
+.logout-btn {
+  background: rgba(255,255,255,0.1);
+  color: #ccc;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: rgba(255,255,255,0.2);
+  color: white;
+}
+
+.access-denied {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+
+.access-denied h2 {
+  color: #dc2626;
+  margin-bottom: 8px;
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="active">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-pip"></div>
+      Data Catalog
+    </div>
+    <div class="login-title">Sign in</div>
+    <div class="login-subtitle">Enter your credentials to access the catalog</div>
+    <div class="login-field">
+      <label class="login-label" for="login-email">Email / Username</label>
+      <input class="login-input" id="login-email" type="text" placeholder="admin" autocomplete="username">
+    </div>
+    <div class="login-field">
+      <label class="login-label" for="login-password">Password</label>
+      <input class="login-input" id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign in</button>
+    <div class="login-error" id="login-error">Invalid email or password</div>
+  </div>
+</div>
+
+<header>
+  <div class="header-content">
+    <div class="logo">
+      <div class="logo-pip"></div>
+      Data Catalog
+    </div>
+    <nav>
+      <a href="#" class="nav-link active" data-page="browse" onclick="showPageNav(event, 'browse')">Browse</a>
+      <a href="#" class="nav-link" data-page="detail" onclick="showPageNav(event, 'detail')">Assets</a>
+      <a href="#" class="nav-link" data-page="chat" onclick="showPageNav(event, 'chat')">AI Lab</a>
+    </nav>
+    <div class="user-info">
+      <span id="header-user-email">—</span>
+      <div class="avatar" id="header-avatar">?</div>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- BROWSE PAGE -->
+  <div class="page active" id="browse-page">
+    <div class="browse-layout">
+      <div class="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-heading">Domain</div>
+          <div class="sidebar-item active">🔧 ITSM <span class="badge">3</span></div>
+          <div class="sidebar-item">📊 Analytics <span class="badge">0</span></div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-heading">Source</div>
+          <div class="sidebar-item">🐘 PostgreSQL <span class="badge">3</span></div>
+          <div class="sidebar-item">⟳ Airflow <span class="badge">1</span></div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-heading">Status</div>
+          <div class="sidebar-item">✓ Verified <span class="badge">3</span></div>
+          <div class="sidebar-item">✦ Claude Ready <span class="badge">2</span></div>
+        </div>
+      </div>
+      <div class="content">
+        <div class="search-bar">
+          <input type="text" class="search-input" placeholder="Search assets..." id="search-input">
+          <button class="filter-btn active">ITSM ×</button>
+          <button class="filter-btn">Sort: Relevance</button>
+        </div>
+        <div class="results-meta" id="results-meta">3 assets found</div>
+        <div class="asset-list" id="asset-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL PAGE -->
+  <div class="page" id="detail-page">
+    <a class="back-link" onclick="showPage('browse')">← Back to Browse</a>
+    <div class="detail-container">
+      <div class="detail-main">
+        <div class="detail-header">
+          <div class="detail-icon" id="detail-icon">🔧</div>
+          <div class="detail-info">
+            <h1 id="detail-title">Asset Name</h1>
+            <div class="detail-path" id="detail-path">schema.table</div>
+            <div class="detail-desc" id="detail-desc">Description here</div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <span class="status-badge status-green">✓ Verified</span>
+              <span class="status-badge status-blue">✦ Claude Ready</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-tabs">
+          <button class="detail-tab active" onclick="switchTab('schema')">Schema</button>
+          <button class="detail-tab" onclick="switchTab('lineage')">Lineage</button>
+          <button class="detail-tab" onclick="switchTab('quality')">Quality</button>
+        </div>
+
+        <div class="tab-content active" id="schema-tab">
+          <table class="schema-table" id="schema-table">
+            <thead>
+              <tr>
+                <th>Column</th>
+                <th>Type</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="schema-tbody">
+            </tbody>
+          </table>
+        </div>
+
+        <div class="tab-content" id="lineage-tab">
+          <div id="lineage-content">
+            <p>Lineage data for this asset would appear here.</p>
+          </div>
+        </div>
+
+        <div class="tab-content" id="quality-tab">
+          <p>Data quality metrics and tests would appear here.</p>
+        </div>
+      </div>
+
+      <div class="detail-sidebar">
+        <div class="sidebar-section-title">How to Access</div>
+        
+        <div class="connect-options">
+          <div class="option selected" onclick="selectConnectionOption(this, 'chat')">
+            <div class="option-title">💬 Chat with Claude</div>
+            <div class="option-desc">Ask questions in natural language</div>
+          </div>
+          <div class="option" onclick="selectConnectionOption(this, 'mcp')">
+            <div class="option-title">🔌 MCP / Claude Code</div>
+            <div class="option-desc">For developers and integrations</div>
+          </div>
+          <div class="option" onclick="selectConnectionOption(this, 'sql')">
+            <div class="option-title">📊 Direct SQL</div>
+            <div class="option-desc">Connection string for SQL tools</div>
+          </div>
+        </div>
+
+        <button class="btn-launch" id="launch-btn" onclick="launchConnectionOption()">✦ Launch Claude</button>
+
+        <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--border);">
+
+        <div class="sidebar-item-row">
+          <div class="sidebar-label">Owner</div>
+          <div class="sidebar-value">Operations Analytics</div>
+        </div>
+
+        <div class="sidebar-item-row">
+          <div class="sidebar-label">Last Updated</div>
+          <div class="sidebar-value">Today, 14:32 UTC</div>
+          <div class="sidebar-sub">airflow_sync_job</div>
+        </div>
+
+        <div class="sidebar-item-row">
+          <div class="sidebar-label">Row Count</div>
+          <div class="sidebar-value">~5 rows</div>
+        </div>
+
+        <div class="sidebar-item-row">
+          <div class="sidebar-label">Access Level</div>
+          <div class="sidebar-value" style="color: var(--success);">✓ Read access</div>
+          <div class="sidebar-sub">Your team role</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT PAGE -->
+  <div class="page" id="chat-page">
+    <a class="back-link" onclick="showPage('detail')">← Back to Asset</a>
+    
+    <div class="success-banner">
+      <div class="success-icon">✓</div>
+      <div class="success-text">
+        <strong id="chat-asset-name">Asset Name</strong>
+        <span>PostgreSQL · Read-only · Your role</span>
+      </div>
+    </div>
+
+    <div class="chat-container">
+      <div class="chat-main">
+        <h2>Claude AI Assistant</h2>
+        <p class="chat-main-desc">
+          Chat with Claude about this asset. Ask questions in natural language and Claude will help analyze your data.
+        </p>
+        <div class="messages" id="messages">
+          <div class="message">
+            <div class="msg-avatar ai">✦</div>
+            <div class="msg-bubble">Hi! I'm connected to your asset. What would you like to know about the data?</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" class="chat-input" placeholder="Ask a question..." id="chat-input" onkeypress="handleChatKeypress(event)">
+          <button class="chat-send" onclick="sendMessage()">↑</button>
+        </div>
+      </div>
+
+      <div class="chat-sidebar">
+        <div class="chat-header">
+          <span>✦ Context</span>
+          <div class="chat-badge" id="chat-badge">asset</div>
+        </div>
+        <div class="chat-context">
+          <div class="ctx-label">Connected to</div>
+          <div class="ctx-item">
+            <div class="ctx-dot"></div>
+            <span id="ctx-asset">Asset Name</span>
+          </div>
+          <div class="ctx-item">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #7c3aed; flex-shrink: 0; margin-top: 4px;"></div>
+            <span>PostgreSQL · Read-only</span>
+          </div>
+          <div class="ctx-item">
+            <div style="width: 6px; height: 6px; border-radius: 50%; background: #b8860b; flex-shrink: 0; margin-top: 4px;"></div>
+            <span>Safe queries enabled</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API_BASE = 'http://localhost:8001';
+let assets = [];
+let selectedAsset = null;
+let chatMessages = [];
+let selectedConnectionType = 'chat';
+
+// ── AUTH STATE ──────────────────────────────────────────────────────────────
+let authToken = localStorage.getItem('catalog_token') || null;
+let currentUser = JSON.parse(localStorage.getItem('catalog_user') || 'null');
+
+function getHeaders() {
+  const h = { 'Content-Type': 'application/json' };
+  if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+  return h;
+}
+
+function showLoginScreen() {
+  document.getElementById('login-screen').classList.add('active');
+}
+
+function hideLoginScreen() {
+  document.getElementById('login-screen').classList.remove('active');
+}
+
+function updateHeaderUser() {
+  if (!currentUser) return;
+  const email = currentUser.email;
+  document.getElementById('header-user-email').textContent = email;
+  document.getElementById('header-avatar').textContent =
+    email.substring(0, 2).toUpperCase();
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!res.ok) {
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const data = await res.json();
+    authToken = data.token;
+    currentUser = { email: data.email, is_admin: data.is_admin };
+    localStorage.setItem('catalog_token', authToken);
+    localStorage.setItem('catalog_user', JSON.stringify(currentUser));
+
+    hideLoginScreen();
+    updateHeaderUser();
+    await init();
+  } catch (err) {
+    errEl.textContent = 'Could not reach the server. Is the API running?';
+    errEl.style.display = 'block';
+  }
+}
+
+async function doLogout() {
+  await fetch(`${API_BASE}/auth/logout`, { method: 'POST', headers: getHeaders() }).catch(() => {});
+  authToken = null;
+  currentUser = null;
+  localStorage.removeItem('catalog_token');
+  localStorage.removeItem('catalog_user');
+  assets = [];
+  selectedAsset = null;
+  document.getElementById('asset-list').innerHTML = '';
+  showLoginScreen();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
+// PAGE ROUTING
+function showPage(pageName) {
+  // Hide all pages
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+  });
+  
+  // Show selected page
+  const page = document.getElementById(pageName + '-page');
+  if (page) {
+    page.classList.add('active');
+  }
+  
+  // Update nav highlight
+  document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+  const navLink = document.querySelector(`[data-page="${pageName}"]`);
+  if (navLink) navLink.classList.add('active');
+  
+  // Focus chat input when navigating to chat page
+  if (pageName === 'chat') {
+    setTimeout(() => {
+      const input = document.getElementById('chat-input');
+      if (input) input.focus();
+    }, 100);
+  }
+}
+
+function showPageNav(e, pageName) {
+  e.preventDefault();
+  showPage(pageName);
+}
+
+// CONNECTION OPTION SELECTION
+function selectConnectionOption(el, type) {
+  // Update visual selection
+  document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  
+  // Store selected type
+  selectedConnectionType = type;
+  
+  // Update button text and behavior
+  const btn = document.getElementById('launch-btn');
+  if (type === 'chat') {
+    btn.innerHTML = '✦ Launch Claude';
+  } else if (type === 'mcp') {
+    btn.innerHTML = '📋 Copy MCP Config';
+  } else if (type === 'sql') {
+    btn.innerHTML = '📝 Copy Connection String';
+  }
+}
+
+// LAUNCH CONNECTION OPTION
+function launchConnectionOption() {
+  if (selectedConnectionType === 'chat') {
+    showPage('chat');
+  } else if (selectedConnectionType === 'mcp') {
+    const config = `# MCP Server Configuration\n\n[catalog-api]\ncommand = python /path/to/catalog_mcp_server.py\nenv = CATALOG_API_URL=${API_BASE}\nenv = DATABASE_URL=postgresql://user:pass@localhost/catalog_db`;
+    copyToClipboard(config);
+    alert('MCP Configuration copied to clipboard!');
+  } else if (selectedConnectionType === 'sql') {
+    const pgUser = currentUser.is_admin
+      ? 'admin'
+      : currentUser.email.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '_');
+    const pgPass = currentUser.email; // password = full_name (login username)
+    const table = `${selectedAsset?.schema_name || 'analytics'}.${selectedAsset?.table_name || ''}`;
+    const connStr = `postgresql://${pgUser}:${pgPass}@localhost:5432/airflow\nTable: ${table}`;
+    copyToClipboard(connStr);
+    alert('Connection string copied to clipboard!');
+  }
+}
+
+// COPY TO CLIPBOARD HELPER
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(err => {
+      console.error('Failed to copy:', err);
+      // Fallback
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    });
+  } else {
+    // Fallback for older browsers
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+}
+
+// TAB SWITCHING
+function switchTab(tabName) {
+  // Hide all tabs
+  document.querySelectorAll('.tab-content').forEach(t => {
+    t.classList.remove('active');
+  });
+  
+  // Show selected tab
+  const tab = document.getElementById(tabName + '-tab');
+  if (tab) {
+    tab.classList.add('active');
+  }
+  
+  // Update tab buttons
+  document.querySelectorAll('.detail-tab').forEach(t => {
+    t.classList.remove('active');
+  });
+  event.target.classList.add('active');
+  
+  // Render lineage when lineage tab is selected
+  if (tabName === 'lineage') {
+    renderLineage();
+  }
+}
+
+// INITIALIZE
+async function init() {
+  // If we have a stored token, verify it's still valid
+  if (authToken) {
+    try {
+      const check = await fetch(`${API_BASE}/auth/me`, { headers: getHeaders() });
+      if (!check.ok) {
+        authToken = null;
+        currentUser = null;
+        localStorage.removeItem('catalog_token');
+        localStorage.removeItem('catalog_user');
+        showLoginScreen();
+        return;
+      }
+    } catch {
+      showLoginScreen();
+      return;
+    }
+  } else {
+    showLoginScreen();
+    return;
+  }
+
+  updateHeaderUser();
+  hideLoginScreen();
+
+  try {
+    const response = await fetch(`${API_BASE}/assets`, { headers: getHeaders() });
+    if (response.status === 401) { doLogout(); return; }
+    if (!response.ok) throw new Error('Failed to fetch assets');
+    assets = await response.json();
+    renderAssets();
+    if (assets.length > 0) selectAsset(assets[0].id);
+  } catch (err) {
+    console.error('Error:', err);
+    document.getElementById('asset-list').innerHTML = '<p>Error loading assets</p>';
+  }
+}
+
+// RENDER ASSETS  
+function renderAssets() {
+  const list = document.getElementById('asset-list');
+  const icons = {1: '🔧', 2: '📦', 3: '🔗'};
+  const descs = {
+    1: 'IT incident records from ServiceNow. Tracks priority, state, assignment, and resolution notes.',
+    2: 'Configuration management database items — IT assets and services.',
+    3: 'Joined mart combining incidents enriched with configuration item details.'
+  };
+
+  list.innerHTML = assets.map(a => `
+    <div class="asset-row" onclick="selectAssetAndShowDetail(${a.id})">
+      <div class="asset-icon">${icons[a.id] || '📋'}</div>
+      <div class="asset-body">
+        <div class="asset-title">
+          ${a.display_name}
+          <span class="status-badge status-green">✓ Verified</span>
+          ${a.id <= 2 ? '' : '<span class="status-badge status-blue">✦ Claude Ready</span>'}
+        </div>
+        <div class="asset-path">${a.schema_name}.${a.table_name}</div>
+        <div class="asset-desc">${descs[a.id] || a.description}</div>
+        <div class="asset-tags">
+          ${a.tags.map(t => `<span class="tag">${t}</span>`).join('')}
+        </div>
+      </div>
+      <div>
+        <button class="btn btn-primary" onclick="event.stopPropagation(); selectAssetAndShowDetail(${a.id})">View Details</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// SELECT ASSET AND NAVIGATE
+async function selectAssetAndShowDetail(id) {
+  // Verify access before navigating to detail
+  try {
+    const res = await fetch(`${API_BASE}/assets/${id}`, { headers: getHeaders() });
+    if (res.status === 401) { doLogout(); return; }
+    if (res.status === 403) {
+      const detail = await res.json();
+      document.getElementById('detail-icon').textContent = '🔒';
+      document.getElementById('detail-title').textContent = 'Access Denied';
+      document.getElementById('detail-path').textContent = '';
+      document.getElementById('detail-desc').textContent = detail.detail || 'You do not have an application role for this asset.';
+      document.getElementById('schema-tbody').innerHTML = '';
+      selectedAsset = assets.find(a => a.id === id);
+      showPage('detail');
+      return;
+    }
+    if (!res.ok) throw new Error('Failed to fetch asset');
+    const asset = await res.json();
+    selectAsset(asset.id);
+    showPage('detail');
+  } catch (err) {
+    console.error('Error fetching asset:', err);
+  }
+}
+
+// SELECT ASSET
+function selectAsset(id) {
+  selectedAsset = assets.find(a => a.id === id);
+  if (!selectedAsset) return;
+
+  const icons = {1: '🔧', 2: '📦', 3: '🔗', 6: '📋', 7: '📦', 8: '🔗', 9: '📋', 10: '🔗'};
+
+  document.getElementById('detail-icon').textContent = icons[selectedAsset.id] || '📋';
+  document.getElementById('detail-title').textContent = selectedAsset.display_name;
+  document.getElementById('detail-path').textContent = `${selectedAsset.database}.${selectedAsset.schema_name}.${selectedAsset.table_name}`;
+  document.getElementById('detail-desc').textContent = selectedAsset.description;
+  document.getElementById('chat-asset-name').textContent = selectedAsset.display_name;
+  document.getElementById('ctx-asset').textContent = selectedAsset.table_name;
+  document.getElementById('chat-badge').textContent = selectedAsset.table_name;
+
+  // Use columns from API response
+  const tbody = document.getElementById('schema-tbody');
+  if (selectedAsset.columns && Array.isArray(selectedAsset.columns) && selectedAsset.columns.length > 0) {
+    tbody.innerHTML = selectedAsset.columns.map(col => `
+      <tr>
+        <td class="col-name">${col.name}</td>
+        <td><span class="col-type">${col.type}</span></td>
+        <td>${col.description || ''}</td>
+      </tr>
+    `).join('');
+  } else {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 12px; color: #999;">No column data available</td></tr>';
+  }
+
+  chatMessages = [];
+  document.getElementById('messages').innerHTML = '<div class="message"><div class="msg-avatar ai">✦</div><div class="msg-bubble">Hi! I\'m connected to ' + selectedAsset.table_name + '. What would you like to know?</div></div>';
+}
+
+// CHAT - Connect to Claude API
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  chatMessages.push({role: 'user', content: msg});
+  const messagesDiv = document.getElementById('messages');
+  const userMsg = document.createElement('div');
+  userMsg.className = 'message user';
+  userMsg.innerHTML = `
+    <div class="msg-avatar user">DA</div>
+    <div class="msg-bubble">${msg.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+  `;
+  messagesDiv.appendChild(userMsg);
+  
+  input.value = '';
+  input.focus();
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  // Show typing indicator
+  const typingMsg = document.createElement('div');
+  typingMsg.className = 'message';
+  typingMsg.id = 'typing-indicator';
+  typingMsg.innerHTML = `
+    <div class="msg-avatar ai">✦</div>
+    <div class="msg-bubble" style="color: #999;">Thinking...</div>
+  `;
+  messagesDiv.appendChild(typingMsg);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+  try {
+    // Call catalog API to get Claude response
+    const response = await fetch(`${API_BASE}/ai-lab/chat`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        message: msg,
+        asset_id: selectedAsset?.id || 1,
+        conversation_history: chatMessages
+      })
+    });
+
+    // Remove typing indicator
+    const typing = document.getElementById('typing-indicator');
+    if (typing) typing.remove();
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const claudeResponse = data.response || data.message || 'I received your question. Please try again.';
+
+    chatMessages.push({role: 'assistant', content: claudeResponse});
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'message';
+    aiMsg.innerHTML = `
+      <div class="msg-avatar ai">✦</div>
+      <div class="msg-bubble">${claudeResponse.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+    `;
+    messagesDiv.appendChild(aiMsg);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  } catch (err) {
+    console.error('Chat error:', err);
+    
+    // Remove typing indicator
+    const typing = document.getElementById('typing-indicator');
+    if (typing) typing.remove();
+
+    const errorMsg = document.createElement('div');
+    errorMsg.className = 'message';
+    errorMsg.innerHTML = `
+      <div class="msg-avatar ai">✦</div>
+      <div class="msg-bubble" style="color: #ff6b6b;">Sorry, I encountered an error. Make sure your backend is running at ${API_BASE}</div>
+    `;
+    messagesDiv.appendChild(errorMsg);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+}
+
+function handleChatKeypress(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+// LINEAGE DATA STRUCTURES
+const lineageFlows = {
+  'stg_servicenow_incidents': {
+    stages: [
+      { title: 'SOURCE', type: 'ServiceNow REST API', items: ['table/incident'], icon: '📋', color: '#fef3c7' },
+      { title: 'ORCHESTRATION', type: 'Airflow DAG', items: ['snow_incident_sync'], icon: '⚙️', color: '#bfdbfe' },
+      { title: 'STORAGE', type: 'PostgreSQL', items: ['raw.supabase_incidents'], icon: '🗄️', color: '#a5f3fc' },
+      { title: 'TRANSFORMATION', type: 'dbt Model', items: ['stg_servicenow_incidents'], icon: '✨', color: '#fed7aa' }
+    ]
+  },
+  'stg_servicenow_change_requests': {
+    stages: [
+      { title: 'SOURCE', type: 'ServiceNow REST API', items: ['table/change_request'], icon: '📋', color: '#fef3c7' },
+      { title: 'ORCHESTRATION', type: 'Airflow DAG', items: ['snow_change_request_sync'], icon: '⚙️', color: '#bfdbfe' },
+      { title: 'STORAGE', type: 'PostgreSQL', items: ['raw.supabase_change_requests'], icon: '🗄️', color: '#a5f3fc' },
+      { title: 'TRANSFORMATION', type: 'dbt Model', items: ['stg_servicenow_change_requests'], icon: '✨', color: '#fed7aa' }
+    ]
+  },
+  'stg_servicenow_configuration_items': {
+    stages: [
+      { title: 'SOURCE', type: 'ServiceNow REST API', items: ['table/cmdb_ci'], icon: '📋', color: '#fef3c7' },
+      { title: 'ORCHESTRATION', type: 'Airflow DAG', items: ['snow_config_items_sync'], icon: '⚙️', color: '#bfdbfe' },
+      { title: 'STORAGE', type: 'PostgreSQL', items: ['raw.supabase_configuration_items'], icon: '🗄️', color: '#a5f3fc' },
+      { title: 'TRANSFORMATION', type: 'dbt Model', items: ['stg_servicenow_configuration_items'], icon: '✨', color: '#fed7aa' }
+    ]
+  },
+  'incidents_with_configuration_items': {
+    stages: [
+      { title: 'UPSTREAM', type: 'Source Models', items: ['stg_servicenow_incidents', 'stg_servicenow_configuration_items'], icon: '📊', color: '#fed7aa' },
+      { title: 'DOWNSTREAM', type: 'dbt Model (Join)', items: ['incidents_with_configuration_items'], icon: '✨', color: '#e9d5ff' }
+    ]
+  },
+  'incidents_with_change_requests': {
+    stages: [
+      { title: 'UPSTREAM', type: 'Source Models', items: ['stg_servicenow_incidents', 'stg_servicenow_change_requests'], icon: '📊', color: '#fed7aa' },
+      { title: 'DOWNSTREAM', type: 'dbt Model (Join)', items: ['incidents_with_change_requests'], icon: '✨', color: '#e9d5ff' }
+    ]
+  }
+};
+
+// RENDER LINEAGE
+function renderLineage() {
+  if (!selectedAsset) return;
+  const tableName = selectedAsset.table_name;
+  const flow = lineageFlows[tableName];
+  
+  const container = document.getElementById('lineage-content');
+  if (!flow) {
+    container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No lineage data available for this asset.</p>';
+    return;
+  }
+
+  let html = `<div style="background: white; padding: 20px; max-width: 800px;">
+    <h3 style="margin-bottom: 20px; font-weight: 700;">Data Lineage: ${tableName}</h3>`;
+  
+  flow.stages.forEach((stage, idx) => {
+    html += `
+      <div style="background: ${stage.color}; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 24px;">${stage.icon}</span>
+          <div>
+            <div style="font-weight: 700; color: #1f2937;">${stage.title}</div>
+            <div style="font-size: 12px; color: #6b7280;">${stage.type}</div>
+          </div>
+        </div>
+        <div style="margin-left: 36px; display: flex; flex-direction: column; gap: 8px;">
+          ${stage.items.map(item => `
+            <div style="font-family: monospace; font-size: 13px; background: white; border: 1px solid #d1d5db; padding: 8px 12px; border-radius: 4px; color: #374151;">
+              ${item}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    
+    if (idx < flow.stages.length - 1) {
+      html += '<div style="text-align: center; padding: 8px 0; color: #9ca3af;">↓</div>';
+    }
+  });
+  
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+  ['login-email', 'login-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+  });
+  init();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+#!/bin/bash
+# Initialize dbt profiles for Airflow container
+
+mkdir -p ~/.dbt
+
+cat > ~/.dbt/profiles.yml << 'EOF'
+analytics_project:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: postgres
+      user: airflow
+      pass: airflow
+      port: 5432
+      dbname: airflow
+      schema: analytics
+      threads: 4
+      keepalives_idle: 0
+    prod:
+      type: postgres
+      host: "{{ env_var('DBT_POSTGRES_HOST', 'postgres') }}"
+      user: "{{ env_var('DBT_POSTGRES_USER', 'airflow') }}"
+      pass: "{{ env_var('DBT_POSTGRES_PASS', 'airflow') }}"
+      port: "{{ env_var('DBT_POSTGRES_PORT', '5432') }}"
+      dbname: "{{ env_var('DBT_POSTGRES_DB', 'airflow') }}"
+      schema: analytics
+      threads: 4
+      keepalives_idle: 0
+EOF
+
+echo "dbt profiles.yml created successfully at ~/.dbt/profiles.yml"
+chmod 600 ~/.dbt/profiles.yml

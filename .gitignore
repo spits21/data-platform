@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+venv/
+.venv/
+
+# dbt
+dbt/analytics_project/target/
+dbt/analytics_project/logs/
+dbt/analytics_project/.user.yml
+
+# Airflow
+airflow/logs/
+
+# Docker
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

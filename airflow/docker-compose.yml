@@ -1,0 +1,94 @@
+# version: '3.8'
+ 
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.8.1
+  env_file:
+    - .env
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    _PIP_ADDITIONAL_REQUIREMENTS: >-
+      dbt-core dbt-postgres requests psycopg2-binary
+      sqlalchemy pandas python-dotenv pymysql
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./utils:/opt/airflow/utils
+    - ../dbt:/opt/airflow/dbt
+    - ../ingestion:/opt/airflow/ingestion
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
+ 
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+ 
+  airflow-init:
+    <<: *airflow-common
+    command: bash -c "airflow db migrate && airflow users create -u admin -p admin -f Admin -l User -e admin@example.com -r Admin || true"
+    restart: "no"
+ 
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports: ["8080:8080"]
+    restart: always
+ 
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+
+  catalog-api:
+    build:
+      context: ../catalog-api
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      CATALOG_DB_NAME: catalog_db
+      AIRFLOW_API_URL: http://airflow-webserver:8080/api/v1
+      AIRFLOW_ADMIN_USER: admin
+      AIRFLOW_ADMIN_PASS: admin
+    volumes:
+      - ../catalog-api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  catalog-ui:
+    build:
+      context: ../catalog-ui
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+    volumes:
+      - ../catalog-ui:/app
+    depends_on:
+      - catalog-api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
