@@ -1,0 +1,29 @@
+#version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    user: 0:0
+    environment:
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_SECURE_COOKIE: 'false'
+      GENERIC_TIMEZONE: UTC
+      DB_TYPE: sqlite
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "5678:5678"
+    networks:
+      - airflow_default
+    restart: unless-stopped
+
+networks:
+  airflow_default:
+    external: true
+
+volumes:
+  n8n_data:
