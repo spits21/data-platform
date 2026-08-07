@@ -24,6 +24,7 @@ import pandas as pd
 
 from .. import data
 from ..charts import REGISTRY as _LIB
+from ..dashboard_spec import DashboardKPI, DashboardSpec, FilterSpec, GroupSpec, PanelSpec, TabSpec
 from ..report_spec import KPI, ReportSpec, SectionSpec
 
 ROLE = "opsgov_incidents"
@@ -313,6 +314,38 @@ def shape_controls_demo(period: str) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def shape_dashboard_rows(period: str) -> pd.DataFrame:
+    """Row-level, JSON-embeddable dataset for the interactive dashboard's
+    client-side filtering (see odrkit/dashboard.py, dashboard.html.j2). Not
+    a chart shape — one row per incident, columns named for direct use as
+    filter fields (``created_at``, ``priority``, ``impact``, ...) and as the
+    source the dashboard's JS reducers re-aggregate from, mirroring the
+    shape_* functions above column-for-column so the two never drift.
+
+    ``resolution_hours`` is null for unresolved incidents (the raw
+    ``updated_at - created_at`` delta is not a resolution time until the
+    incident is actually resolved/closed) so client-side aggregations don't
+    need to re-derive ``is_resolved`` gating themselves.
+    """
+    raw = _raw(period).copy()
+    resolution_hours = raw["resolution_hours"].where(raw["is_resolved"])
+    return pd.DataFrame(
+        {
+            "created_at": raw["created_at"].dt.strftime("%Y-%m-%d"),
+            "week_start": raw["week_start"].dt.strftime("%Y-%m-%d"),
+            "resolved_week_start": raw["resolved_week_start"].dt.strftime("%Y-%m-%d"),
+            "weekday": raw["created_at"].dt.day_name(),
+            "priority": raw["priority"].astype(str),
+            "impact": raw["impact"].astype(str),
+            "state": raw["state"].astype(str),
+            "has_change": raw["has_change"].astype(bool),
+            "resolution_hours": resolution_hours.astype(float),
+            "is_resolved": raw["is_resolved"].astype(bool),
+            "ci_id": raw["ci_id"].astype(str),
+        }
+    )
+
+
 def build_narrative(period: str) -> str:
     raw = _raw(period)
     total = len(raw)
@@ -537,5 +570,153 @@ def build_report_spec(period: str) -> ReportSpec:
                 cfg={"count_title": "Count", "avg_title": "Avg Resolution (hrs)"},
             ),
             SectionSpec(kind="disclaimer"),
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Dashboard: grouped/tabbed front end with live client-side filtering.
+# Initial panel figures reuse the SAME per-report registry as the deck/doc
+# (build_registry above) — only the front end differs. Filters + the
+# recompute names below are paired 1:1 with the RECOMPUTE / KPI_RECOMPUTE
+# JS reducers in odrkit/templates/dashboard.html.j2 (see the comment above
+# each JS reducer for which shape_* function it ports).
+# ---------------------------------------------------------------------------
+
+DASHBOARD_FILTERS = [
+    FilterSpec(id="date", label="Created Date", field="created_at", kind="date_range"),
+    FilterSpec(id="priority", label="Priority", field="priority", kind="multiselect", options=PRIORITY_ORDER),
+    FilterSpec(id="impact", label="Impact", field="impact", kind="multiselect"),
+    FilterSpec(
+        id="change",
+        label="Change Request",
+        field="has_change",
+        kind="select",
+        options=["all", "true", "false"],
+        option_labels={"all": "All", "true": "Change-Caused", "false": "Not Change-Caused"},
+    ),
+]
+
+
+def _dashboard_kpis(period: str) -> list[DashboardKPI]:
+    ids = ["total_incidents", "change_caused_rate", "median_resolution", "open_backlog"]
+    return [DashboardKPI(id=i, label=k.label, value=k.value, sub=k.sub) for i, k in zip(ids, shape_kpis(period))]
+
+
+def build_dashboard_spec(period: str) -> DashboardSpec:
+    return DashboardSpec(
+        title="Incidents & Change Requests — Operations Dashboard",
+        eyebrow="ITSM / OpsGov",
+        subtitle=f"Fiscal quarter {period} · sourced live from Postgres · filter to explore",
+        id_badge=period,
+        synthetic=False,
+        filters=DASHBOARD_FILTERS,
+        tabs=[
+            TabSpec(
+                id="overview",
+                label="Overview",
+                groups=[
+                    GroupSpec(
+                        id="headline_kpis",
+                        kind="kpi_row",
+                        kpis=_dashboard_kpis(period),
+                        kpi_recompute="headline_kpis",
+                    ),
+                    GroupSpec(
+                        id="volume_flow",
+                        title="Volume & Flow",
+                        columns=2,
+                        panels=[
+                            PanelSpec(
+                                id="volume_trend",
+                                chart_id="volume_trend",
+                                title="Weekly Incident Volume",
+                                eyebrow="Time Series",
+                                subtitle="Opened vs. resolved, by week",
+                                cfg={"y_title": "Incidents", "metric_name": ""},
+                                recompute="volume_trend",
+                            ),
+                            PanelSpec(
+                                id="lifecycle_funnel",
+                                chart_id="lifecycle_funnel",
+                                title="Incident Lifecycle Funnel",
+                                eyebrow="Pipeline",
+                                subtitle="Snapshot of how far incidents have progressed",
+                                cfg={"value_title": "Incidents"},
+                                recompute="lifecycle_funnel",
+                            ),
+                        ],
+                    ),
+                    GroupSpec(
+                        id="backlog",
+                        title="Backlog",
+                        columns=1,
+                        panels=[
+                            PanelSpec(
+                                id="backlog_bridge",
+                                chart_id="backlog_bridge",
+                                title="Backlog Bridge",
+                                eyebrow="Flow",
+                                subtitle="Opened → resolved/closed → ending open backlog",
+                                cfg={"mode": "level", "y_title": "Incidents"},
+                                recompute="backlog_bridge",
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            TabSpec(
+                id="priority_risk",
+                label="Priority & Risk",
+                groups=[
+                    GroupSpec(
+                        id="priority_matrix",
+                        title="Where Risk Concentrates",
+                        columns=2,
+                        panels=[
+                            PanelSpec(
+                                id="weekday_priority_heatmap",
+                                chart_id="weekday_priority_heatmap",
+                                title="Incident Volume by Weekday × Priority",
+                                eyebrow="Matrix",
+                                subtitle="Where critical incidents cluster during the week",
+                                cfg={
+                                    "row_col": "weekday", "col_col": "priority", "value_col": "value",
+                                    "colorscale": "turbo", "value_title": "Incidents",
+                                },
+                                recompute="weekday_priority_heatmap",
+                            ),
+                            PanelSpec(
+                                id="resolution_by_priority",
+                                chart_id="resolution_by_priority",
+                                title="Resolution Time by Priority",
+                                eyebrow="Distribution",
+                                subtitle="Hours to resolve, resolved/closed incidents only",
+                                cfg={"mode": "box", "category_col": "priority", "y_title": "Hours"},
+                                recompute="resolution_by_priority",
+                            ),
+                        ],
+                    ),
+                    GroupSpec(
+                        id="ci_risk",
+                        title="Configuration Item Risk",
+                        columns=1,
+                        panels=[
+                            PanelSpec(
+                                id="ci_risk_scatter",
+                                chart_id="ci_risk_scatter",
+                                title="Configuration Item Risk Map",
+                                eyebrow="Scatter",
+                                subtitle="Top 20 CIs by incident count in the filtered set — size = critical incidents, color = % change-caused",
+                                cfg={
+                                    "x_title": "Incident Count", "y_title": "Avg Resolution (hrs)",
+                                    "size_title": "Critical Incidents", "color_title": "% Change-Caused",
+                                },
+                                recompute="ci_risk_scatter",
+                            ),
+                        ],
+                    ),
+                ],
+            ),
         ],
     )

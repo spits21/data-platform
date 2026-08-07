@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ dashboard_title }} — Ops Data Reporter</title>
+<script src="{{ plotly_cdn }}"></script>
+<style>
+{{ css_vars }}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+
+.odr-letterhead {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding: 1.2rem 2rem; border-bottom: 3px solid var(--odr-cyan);
+}
+.odr-letterhead .confidential { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04rem; color: var(--text-dim); text-transform: uppercase; }
+
+.title-block { padding: 1.6rem 2rem 0.4rem; }
+.title-block h1 { font-size: 2rem; margin: 0.2rem 0 0.5rem; color: var(--odr-black); }
+.title-block .eyebrow { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06rem; text-transform: uppercase; color: var(--odr-dark-teal); }
+.title-block .subtitle { font-size: 1rem; color: var(--text-dim); max-width: 46rem; }
+.title-block .id-badge {
+  margin-top: 0.8rem; font-size: 0.72rem; letter-spacing: 0.05rem; color: var(--odr-dark-teal);
+  text-transform: uppercase; border: 1px solid var(--odr-cyan); padding: 0.3rem 0.7rem; display: inline-block;
+}
+
+.filter-bar {
+  position: sticky; top: 0; z-index: 20; background: var(--bg);
+  border-bottom: 1px solid var(--border); padding: 0.9rem 2rem;
+  display: flex; flex-wrap: wrap; gap: 1.6rem; align-items: flex-end;
+}
+.filter-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.filter-group .group-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03rem; color: var(--text-muted); }
+.filter-dates { display: flex; align-items: center; gap: 0.4rem; }
+.filter-dates input[type="date"] {
+  border: 1px solid var(--border); font-family: var(--font-body); font-size: 0.82rem;
+  padding: 0.3rem 0.4rem; background: var(--bg); color: var(--text);
+}
+.filter-dates .sep { color: var(--text-muted); font-size: 0.8rem; }
+.filter-chips { display: flex; gap: 0.5rem; flex-wrap: wrap; max-width: 26rem; }
+.filter-chip {
+  display: flex; align-items: center; gap: 0.35rem; font-size: 0.8rem;
+  border: 1px solid var(--border); padding: 0.28rem 0.55rem; cursor: pointer; user-select: none;
+}
+.filter-chip input { margin: 0; accent-color: var(--odr-dark-teal); }
+.filter-group select {
+  border: 1px solid var(--border); font-family: var(--font-body); font-size: 0.82rem;
+  padding: 0.32rem 0.4rem; background: var(--bg); color: var(--text);
+}
+.reset-btn {
+  border: 1px solid var(--odr-dark-teal); background: transparent; color: var(--odr-dark-teal);
+  font-size: 0.78rem; font-weight: 600; padding: 0.4rem 0.9rem; cursor: pointer;
+}
+.reset-btn:hover { background: var(--odr-dark-teal); color: var(--odr-white); }
+.filter-count { margin-left: auto; font-size: 0.8rem; color: var(--odr-dark-teal); font-weight: 700; align-self: center; white-space: nowrap; }
+
+.tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--border); padding: 0 2rem; overflow-x: auto; }
+.tab-btn {
+  padding: 0.85rem 1.4rem; font-size: 0.82rem; font-weight: 700; color: var(--text-muted);
+  background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.02rem; white-space: nowrap;
+}
+.tab-btn.active { color: var(--odr-black); border-bottom-color: var(--odr-cyan); }
+.tab-btn:hover { color: var(--odr-dark-teal); }
+
+.tab-panel { display: none; padding: 1.6rem 2rem 3rem; max-width: 88rem; margin: 0 auto; }
+.tab-panel.active { display: block; }
+
+.panel-group { margin-bottom: 2.2rem; }
+.panel-group:last-child { margin-bottom: 0; }
+.panel-group h3 {
+  font-size: 1.05rem; font-weight: 700; color: var(--odr-black); margin: 0 0 0.9rem; display: inline-block;
+  text-decoration: underline; text-decoration-color: var(--odr-cyan);
+  text-underline-offset: 6px; text-decoration-thickness: 3px;
+}
+.panel-grid { display: grid; gap: 1.2rem; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
+@media (max-width: 1000px) { .panel-grid { grid-template-columns: 1fr; } }
+
+.panel-card { border: 1px solid var(--border); padding: 0.9rem 1rem 0.5rem; background: var(--bg); min-width: 0; }
+.panel-card .panel-eyebrow { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05rem; text-transform: uppercase; color: var(--odr-dark-teal); }
+.panel-card .panel-title { font-size: 0.98rem; font-weight: 700; color: var(--odr-black); margin: 0.1rem 0 0.1rem; }
+.panel-card .panel-subtitle { font-size: 0.76rem; color: var(--text-dim); margin-bottom: 0.5rem; }
+
+.kpi-strip { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.kpi { background: var(--bg-card); border: 2px solid var(--border); border-top: 3px solid var(--odr-cyan); padding: 1rem 1.4rem; min-width: 12rem; flex: 1 1 12rem; }
+.kpi .label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03rem; margin-bottom: 0.3rem; }
+.kpi .value { font-size: 2rem; font-weight: 700; color: var(--odr-black); }
+.kpi .kpi-sub { font-size: 0.78rem; color: var(--odr-dark-teal); margin-top: 0.2rem; }
+
+.chart-error { color: var(--odr-red); font-family: var(--font-mono); font-size: 0.85rem; padding: 1rem; border: 1px solid var(--odr-red); }
+
+.dashboard-footer { max-width: 88rem; margin: 0 auto; padding: 1.5rem 2rem 3rem; }
+.footer-top { padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+.odr-disclaimer-drawer { margin-top: 1rem; font-size: 0.78rem; }
+.odr-disclaimer-drawer summary { cursor: pointer; color: var(--odr-dark-teal); font-weight: 600; }
+.odr-disclaimer { margin-top: 0.8rem; padding-top: 1rem; border-top: 3px solid var(--border); }
+.odr-disclaimer p { font-size: 0.72rem; color: var(--text-muted); text-align: justify; }
+.synthetic-marker { color: var(--odr-red); font-weight: 700; letter-spacing: 0.03rem; display: block; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<div class="odr-letterhead">
+  <div class="confidential">Confidential | Ops Data Reporter</div>
+</div>
+
+<div class="title-block">
+  <div class="eyebrow">{{ eyebrow }}</div>
+  <h1>{{ dashboard_title }}</h1>
+  <div class="subtitle">{{ subtitle }}</div>
+  {% if id_badge %}<div class="id-badge">{{ id_badge }}</div>{% endif %}
+</div>
+
+<div class="filter-bar">
+  {% for f in filters %}
+    {% if f.kind == 'date_range' %}
+      <div class="filter-group">
+        <label class="group-label">{{ f.label }}</label>
+        <div class="filter-dates">
+          <input type="date" data-filter-field="{{ f.field }}" data-filter-kind="date_start"
+                 min="{{ f.extent[0] }}" max="{{ f.extent[1] }}" value="{{ f.extent[0] }}">
+          <span class="sep">to</span>
+          <input type="date" data-filter-field="{{ f.field }}" data-filter-kind="date_end"
+                 min="{{ f.extent[0] }}" max="{{ f.extent[1] }}" value="{{ f.extent[1] }}">
+        </div>
+      </div>
+    {% elif f.kind == 'multiselect' %}
+      <div class="filter-group">
+        <label class="group-label">{{ f.label }}</label>
+        <div class="filter-chips" data-filter-field="{{ f.field }}" data-filter-kind="multiselect">
+          {% for opt in f.options %}
+          <label class="filter-chip"><input type="checkbox" value="{{ opt }}" checked> {{ f.option_labels.get(opt, opt) }}</label>
+          {% endfor %}
+        </div>
+      </div>
+    {% elif f.kind == 'select' %}
+      <div class="filter-group">
+        <label class="group-label">{{ f.label }}</label>
+        <select data-filter-field="{{ f.field }}" data-filter-kind="select">
+          {% for opt in f.options %}
+          <option value="{{ opt }}">{{ f.option_labels.get(opt, opt) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+  {% endfor %}
+  <button class="reset-btn" id="reset-filters" type="button">Reset Filters</button>
+  <div class="filter-count" id="filter-count"></div>
+</div>
+
+<div class="tab-bar">
+  {% for tab in tabs %}
+  <button class="tab-btn {{ 'active' if loop.first else '' }}" data-tab="{{ tab.id }}" type="button">{{ tab.label }}</button>
+  {% endfor %}
+</div>
+
+{% for tab in tabs %}
+<div class="tab-panel {{ 'active' if loop.first else '' }}" data-tab="{{ tab.id }}">
+  {% for group in tab.groups %}
+    {% if group.kind == 'kpi_row' %}
+      <div class="panel-group">
+        {% if group.title %}<h3>{{ group.title }}</h3>{% endif %}
+        <div class="kpi-strip">
+          {% for kpi in group.kpis %}
+          <div class="kpi">
+            <div class="label">{{ kpi.label }}</div>
+            <div class="value" data-kpi-value="{{ kpi.id }}">{{ kpi.value }}</div>
+            <div class="kpi-sub" data-kpi-sub="{{ kpi.id }}">{{ kpi.sub }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% else %}
+      <div class="panel-group">
+        {% if group.title %}<h3>{{ group.title }}</h3>{% endif %}
+        <div class="panel-grid" style="--cols: {{ group.columns }};">
+          {% for panel in group.panels %}
+          <div class="panel-card" {% if panel.span and panel.span > 1 %}style="grid-column: span {{ panel.span }};"{% endif %}>
+            {% if panel.eyebrow %}<div class="panel-eyebrow">{{ panel.eyebrow }}</div>{% endif %}
+            {% if panel.title %}<div class="panel-title">{{ panel.title }}</div>{% endif %}
+            {% if panel.subtitle %}<div class="panel-subtitle">{{ panel.subtitle }}</div>{% endif %}
+            {{ panel.figure_html | safe }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endfor %}
+
+<footer class="dashboard-footer">
+  <div class="footer-top">
+    <span>{{ copyright_line }}</span>
+    <span>{{ provenance_line }}</span>
+  </div>
+  {% if appends_disclaimer %}
+  <details class="odr-disclaimer-drawer">
+    <summary>Legal Notice &amp; Limitations</summary>
+    <div class="odr-disclaimer">
+      {% if synthetic %}<span class="synthetic-marker">{{ synthetic_notice }}</span>{% endif %}
+      {% for para in disclaimer_paragraphs %}<p>{{ para }}</p>{% endfor %}
+    </div>
+  </details>
+  {% endif %}
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  var ROWS = {{ rows_json | safe }};
+  var FILTERS = {{ filters_json | safe }};
+  var PANEL_META = {{ panel_meta_json | safe }};
+  var KPI_META = {{ kpi_meta_json | safe }};
+
+  var PRIORITY_ORDER = ["Critical", "High", "Medium", "Low"];
+  var WEEKDAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+  // ------------------------------------------------------------------ utils
+  function median(arr) {
+    if (!arr.length) return NaN;
+    var s = arr.slice().sort(function (a, b) { return a - b; });
+    var m = Math.floor(s.length / 2);
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+  function fmtInt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function fmtPct1(n) { return (isFinite(n) ? n : 0).toFixed(1) + '%'; }
+
+  // ------------------------------------------------------------ filter state
+  // Every filter starts "wide open" (all options selected / full date
+  // extent), so the initial recompute below reproduces exactly the
+  // server-rendered baseline — the first client-side pass is a consistency
+  // check on the same numbers, not a different computation.
+  var state = { dateStart: null, dateEnd: null, multiselect: {}, select: {} };
+
+  FILTERS.forEach(function (f) {
+    if (f.kind === 'date_range') {
+      state.dateStart = f.extent[0] || null;
+      state.dateEnd = f.extent[1] || null;
+    } else if (f.kind === 'multiselect') {
+      state.multiselect[f.field] = new Set(f.options.map(String));
+    } else if (f.kind === 'select') {
+      state.select[f.field] = 'all';
+    }
+  });
+
+  function passesFilters(r) {
+    if (state.dateStart && r.created_at < state.dateStart) return false;
+    if (state.dateEnd && r.created_at > state.dateEnd) return false;
+    for (var field in state.multiselect) {
+      if (!state.multiselect[field].has(String(r[field]))) return false;
+    }
+    for (var field2 in state.select) {
+      var val = state.select[field2];
+      if (val === 'all') continue;
+      if (field2 === 'has_change') {
+        if (r[field2] !== (val === 'true')) return false;
+      } else if (String(r[field2]) !== val) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function applyFilters() { return ROWS.filter(passesFilters); }
+
+  // ------------------------------------------------------------- RECOMPUTE
+  // Each reducer is a direct client-side port of the matching Python shaper
+  // in odrkit/roles/opsgov_incidents.py (see the comment above each), and
+  // only ever touches the ROWS already embedded in this page.
+  var RECOMPUTE = {
+    // ports shape_volume_trend()
+    volume_trend: function (rows) {
+      var opened = {}, resolved = {};
+      rows.forEach(function (r) { opened[r.week_start] = (opened[r.week_start] || 0) + 1; });
+      rows.forEach(function (r) { if (r.is_resolved) resolved[r.resolved_week_start] = (resolved[r.resolved_week_start] || 0) + 1; });
+      var weekSet = {};
+      Object.keys(opened).forEach(function (w) { weekSet[w] = true; });
+      Object.keys(resolved).forEach(function (w) { weekSet[w] = true; });
+      var weeks = Object.keys(weekSet).sort();
+      var openedY = weeks.map(function (w) { return opened[w] || 0; });
+      var resolvedY = weeks.map(function (w) { return resolved[w] || 0; });
+      Plotly.restyle('panel-volume_trend', { x: [weeks, weeks], y: [openedY, resolvedY] }, [0, 1]);
+    },
+
+    // ports shape_lifecycle_funnel()
+    lifecycle_funnel: function (rows) {
+      var rank = { "New": 0, "On Hold": 1, "In Progress": 1, "Resolved": 2, "Closed": 3 };
+      var values = [0, 0, 0, 0];
+      rows.forEach(function (r) {
+        var s = rank[r.state];
+        if (s === undefined) return;
+        for (var k = 0; k <= s && k < 4; k++) values[k]++;
+      });
+      Plotly.restyle('panel-lifecycle_funnel', { x: [values] }, [0]);
+    },
+
+    // ports shape_backlog_bridge()
+    backlog_bridge: function (rows) {
+      var totalOpened = rows.length, resolvedCount = 0, closedCount = 0;
+      rows.forEach(function (r) {
+        if (r.state === 'Resolved') resolvedCount++;
+        else if (r.state === 'Closed') closedCount++;
+      });
+      var stillOpen = totalOpened - resolvedCount - closedCount;
+      Plotly.restyle('panel-backlog_bridge', { y: [[totalOpened, -resolvedCount, -closedCount, stillOpen]] }, [0]);
+    },
+
+    // ports shape_weekday_priority_heatmap()
+    weekday_priority_heatmap: function (rows) {
+      var z = WEEKDAY_ORDER.map(function () { return PRIORITY_ORDER.map(function () { return 0; }); });
+      rows.forEach(function (r) {
+        var wi = WEEKDAY_ORDER.indexOf(r.weekday);
+        var pi = PRIORITY_ORDER.indexOf(r.priority);
+        if (wi >= 0 && pi >= 0) z[wi][pi]++;
+      });
+      Plotly.restyle('panel-weekday_priority_heatmap', { z: [z] }, [0]);
+    },
+
+    // ports shape_resolution_by_priority()
+    resolution_by_priority: function (rows) {
+      var byPriority = {};
+      PRIORITY_ORDER.forEach(function (p) { byPriority[p] = []; });
+      rows.forEach(function (r) {
+        if (r.is_resolved && r.resolution_hours != null && byPriority.hasOwnProperty(r.priority)) {
+          byPriority[r.priority].push(r.resolution_hours);
+        }
+      });
+      var ys = PRIORITY_ORDER.map(function (p) { return byPriority[p]; });
+      Plotly.restyle('panel-resolution_by_priority', { y: ys }, [0, 1, 2, 3]);
+    },
+
+    // ports shape_ci_risk_scatter()
+    ci_risk_scatter: function (rows) {
+      var byCi = {};
+      rows.forEach(function (r) {
+        var g = byCi[r.ci_id];
+        if (!g) g = byCi[r.ci_id] = { count: 0, critical: 0, changeSum: 0, resSum: 0, resCount: 0 };
+        g.count++;
+        if (r.priority === 'Critical') g.critical++;
+        if (r.has_change) g.changeSum++;
+        if (r.is_resolved && r.resolution_hours != null) { g.resSum += r.resolution_hours; g.resCount++; }
+      });
+      var agg = Object.keys(byCi).map(function (ci) {
+        var g = byCi[ci];
+        return {
+          ci: ci, count: g.count,
+          critical: Math.max(g.critical, 1),
+          changeShare: g.count ? g.changeSum / g.count : 0,
+          avgRes: g.resCount ? g.resSum / g.resCount : null,
+        };
+      }).filter(function (a) { return a.avgRes !== null; });
+      agg.sort(function (a, b) { return b.count - a.count; });
+      agg = agg.slice(0, 20);
+
+      var maxCritical = agg.reduce(function (m, a) { return Math.max(m, a.critical); }, 0) || 1;
+      Plotly.restyle('panel-ci_risk_scatter', {
+        x: [agg.map(function (a) { return a.count; })],
+        y: [agg.map(function (a) { return a.avgRes; })],
+        text: [agg.map(function (a) { return 'CI ' + a.ci.slice(0, 8); })],
+        'marker.size': [agg.map(function (a) { return (a.critical / maxCritical) * 46 + 6; })],
+        'marker.color': [agg.map(function (a) { return a.changeShare * 100; })],
+      }, [0]);
+    }
+  };
+
+  // ports shape_kpis()
+  var KPI_RECOMPUTE = {
+    headline_kpis: function (rows) {
+      var total = rows.length;
+      var critical = rows.filter(function (r) { return r.priority === 'Critical'; }).length;
+      var changeCount = rows.filter(function (r) { return r.has_change; }).length;
+      var changeRate = total ? (changeCount / total) * 100 : 0;
+      var resolved = rows.filter(function (r) { return r.is_resolved; });
+      var resHours = resolved.map(function (r) { return r.resolution_hours; }).filter(function (v) { return v != null; });
+      var medianRes = median(resHours);
+      var openBacklog = rows.filter(function (r) { return !r.is_resolved; }).length;
+
+      return [
+        { value: fmtInt(total), sub: critical + ' Critical' },
+        { value: fmtPct1(changeRate), sub: changeCount + ' of ' + total + ' incidents' },
+        { value: resHours.length ? (fmtInt(medianRes) + ' hrs') : 'N/A', sub: fmtInt(resolved.length) + ' resolved/closed' },
+        { value: fmtInt(openBacklog), sub: 'New + In Progress + On Hold' },
+      ];
+    }
+  };
+
+  // --------------------------------------------------------------- update
+  function updateAll() {
+    var rows = applyFilters();
+
+    var countEl = document.getElementById('filter-count');
+    if (countEl) countEl.textContent = fmtInt(rows.length) + ' of ' + fmtInt(ROWS.length) + ' incidents';
+
+    Object.keys(KPI_META).forEach(function (groupId) {
+      var meta = KPI_META[groupId];
+      var fn = KPI_RECOMPUTE[meta.recompute];
+      if (!fn) return;
+      var vals = fn(rows);
+      meta.kpiIds.forEach(function (kpiId, i) {
+        var v = vals[i];
+        if (!v) return;
+        var valueEl = document.querySelector('[data-kpi-value="' + kpiId + '"]');
+        var subEl = document.querySelector('[data-kpi-sub="' + kpiId + '"]');
+        if (valueEl) valueEl.textContent = v.value;
+        if (subEl) subEl.textContent = v.sub;
+      });
+    });
+
+    Object.keys(PANEL_META).forEach(function (panelId) {
+      var fn = RECOMPUTE[PANEL_META[panelId]];
+      var gd = document.getElementById('panel-' + panelId);
+      if (!fn || !gd) return;
+      try { fn(rows); } catch (err) { window.console && console.error('dashboard: recompute failed for', panelId, err); }
+    });
+  }
+
+  // ------------------------------------------------------------- wire UI
+  document.querySelectorAll('[data-filter-kind="date_start"]').forEach(function (el) {
+    el.addEventListener('change', function () { state.dateStart = el.value || null; updateAll(); });
+  });
+  document.querySelectorAll('[data-filter-kind="date_end"]').forEach(function (el) {
+    el.addEventListener('change', function () { state.dateEnd = el.value || null; updateAll(); });
+  });
+  document.querySelectorAll('[data-filter-kind="multiselect"]').forEach(function (group) {
+    var field = group.getAttribute('data-filter-field');
+    group.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var set = state.multiselect[field];
+        if (cb.checked) set.add(cb.value); else set.delete(cb.value);
+        updateAll();
+      });
+    });
+  });
+  document.querySelectorAll('[data-filter-kind="select"]').forEach(function (sel) {
+    var field = sel.getAttribute('data-filter-field');
+    sel.addEventListener('change', function () { state.select[field] = sel.value; updateAll(); });
+  });
+
+  var resetBtn = document.getElementById('reset-filters');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function () {
+      document.querySelectorAll('[data-filter-kind="date_start"]').forEach(function (el) { el.value = el.getAttribute('min'); state.dateStart = el.value || null; });
+      document.querySelectorAll('[data-filter-kind="date_end"]').forEach(function (el) { el.value = el.getAttribute('max'); state.dateEnd = el.value || null; });
+      document.querySelectorAll('[data-filter-kind="multiselect"]').forEach(function (group) {
+        var field = group.getAttribute('data-filter-field');
+        var set = new Set();
+        group.querySelectorAll('input[type="checkbox"]').forEach(function (cb) { cb.checked = true; set.add(cb.value); });
+        state.multiselect[field] = set;
+      });
+      document.querySelectorAll('[data-filter-kind="select"]').forEach(function (sel) {
+        sel.value = 'all';
+        state.select[sel.getAttribute('data-filter-field')] = 'all';
+      });
+      updateAll();
+    });
+  }
+
+  // ------------------------------------------------------------- tabs
+  var tabBtns = Array.prototype.slice.call(document.querySelectorAll('.tab-btn'));
+  var tabPanels = Array.prototype.slice.call(document.querySelectorAll('.tab-panel'));
+  tabBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = btn.getAttribute('data-tab');
+      tabBtns.forEach(function (b) { b.classList.toggle('active', b === btn); });
+      tabPanels.forEach(function (p) {
+        var active = p.getAttribute('data-tab') === target;
+        p.classList.toggle('active', active);
+        if (active) {
+          p.querySelectorAll('.js-plotly-plot').forEach(function (gd) {
+            try { Plotly.Plots.resize(gd); } catch (err) { /* not yet rendered */ }
+          });
+        }
+      });
+    });
+  });
+
+  updateAll();
+})();
+</script>
+</body>
+</html>

@@ -7,12 +7,13 @@ built by a deterministic Python engine and driven, in plain English, by Claude
 data and write a small role module, and the same machinery reports on corporate
 finance, sales, marketing, operations, data-center cost, or whatever you track.
 
-> **The PowerPoint-killer and the Word-killer, from one source of truth.** One
-> declarative report spec renders as a scroll-snap **slide deck** *and* a
-> long-scroll interactive **document**. A **16-chart** Plotly library, **two**
-> document engines (a custom Python engine *and* Quarto), and **3** skills —
-> all in one emailable folder, every chart headless-verified to render with
-> zero console errors.
+> **The PowerPoint-killer, the Word-killer, and the BI-tool-killer, from one
+> source of truth.** One declarative report spec renders as a scroll-snap
+> **slide deck** *and* a long-scroll interactive **document**; a parallel
+> declarative spec renders a tabbed, filterable **dashboard**. A **16-chart**
+> Plotly library, **two** document engines (a custom Python engine *and*
+> Quarto), and **3** skills — all in one emailable folder, every chart
+> headless-verified to render with zero console errors.
 
 This package is a working **template you can steal**: run it offline, rebrand it
 in one file, point it at your own data, and have your own agents extend it.
@@ -29,7 +30,7 @@ in one file, point it at your own data, and have your own agents extend it.
 - [What's in the box](#whats-in-the-box)
 - [The demo roles](#the-demo-roles)
 - [The chart library](#the-chart-library)
-- [Two front ends: decks and docs](#two-front-ends-decks-and-docs)
+- [Three front ends: decks, docs, and dashboards](#three-front-ends-decks-docs-and-dashboards)
 - [Quarto parameterized reporting](#quarto-parameterized-reporting)
 - [The three skills](#the-three-skills)
 - [Make it yours](#make-it-yours)
@@ -45,7 +46,7 @@ in one file, point it at your own data, and have your own agents extend it.
                               |
                               ▼
   ┌──────────────────────────────────────────┐   interpret the request · choose the
-  │ Claude + skill  —  the GLUE               │   role, period, deck-or-doc ·
+  │ Claude + skill  —  the GLUE               │   role, period, deck/doc/dashboard ·
   │ (flexible, fuzzy, conversational)         │   read the result and explain it
   └──────────────────────────────────────────┘
                               |  calls deterministic verbs
@@ -87,9 +88,10 @@ uv run odr doctor                                  # env + data + chart self-tes
 uv run odr list-charts                             # the 16-chart library
 uv run odr list-roles                              # data roles + datasets
 
-uv run odr build-role --role corporate_finance --format deck     # → a deck
-uv run odr build-role --role opsgov_incidents  --format doc      # → a doc (real, live data)
-uv run odr viz-catalog                                            # → one of every chart + code
+uv run odr build-role --role corporate_finance --format deck        # → a deck
+uv run odr build-role --role opsgov_incidents  --format doc         # → a doc (real, live data)
+uv run odr build-role --role opsgov_incidents  --format dashboard   # → a filterable dashboard
+uv run odr viz-catalog                                               # → one of every chart + code
 
 open artifacts/*/*.html viz_catalog.html           # macOS
 ```
@@ -113,6 +115,7 @@ ops-data-reporter/
 │   ├── report_spec.py           ReportSpec / SectionSpec (declarative reports)
 │   ├── deck.py + templates/deck.html.j2    scroll-snap deck renderer (PowerPoint-killer)
 │   ├── doc.py + templates/doc.html.j2      long-scroll doc renderer (Word-killer)
+│   ├── dashboard_spec.py + dashboard.py + templates/dashboard.html.j2   tabbed, filterable dashboard renderer (BI-tool-killer)
 │   ├── roles/                   one module per business area (the 2 demo roles)
 │   ├── data.py                  parquet/CSV loaders for data/<role>/
 │   ├── content/                 verbatim disclaimer + synthetic notice
@@ -128,20 +131,24 @@ ops-data-reporter/
 
 ## The demo roles
 
-Every role ships **both** a slide deck **and** a document, from one role module.
-Each role's data + columns are documented in `data/DATA_DICTIONARY.md`.
+Every role ships a slide deck **and** a document, from one role module; some
+also ship a filterable dashboard. Each role's data + columns are documented
+in `data/DATA_DICTIONARY.md`.
 
-| Role | The story | Signature charts | Deck | Doc engine | Data |
-|---|---|---|---|---|---|
-| **corporate_finance** | FP&A quarterly business review for the CFO | KPI cards · revenue/opex time series · segment treemap · budget-vs-actual **variance bridge** | ✅ | **custom + Quarto** (flagship, both ways) | synthetic |
-| **opsgov_incidents** | Incident & Change Request governance review | lifecycle **funnel** · resolution-time distributions · weekday×priority **heatmap** · priority→outcome **sankey** | ✅ | custom | **real** (live Postgres) |
+| Role | The story | Signature charts | Deck | Doc engine | Dashboard | Data |
+|---|---|---|---|---|---|---|
+| **corporate_finance** | FP&A quarterly business review for the CFO | KPI cards · revenue/opex time series · segment treemap · budget-vs-actual **variance bridge** | ✅ | **custom + Quarto** (flagship, both ways) | — | synthetic |
+| **opsgov_incidents** | Incident & Change Request governance review | lifecycle **funnel** · resolution-time distributions · weekday×priority **heatmap** · priority→outcome **sankey** | ✅ | custom | ✅ tabbed, filterable | **real** (live Postgres) |
 
 **corporate_finance** is the reference role, built **both** doc ways side by
 side so you can compare the engines directly; its Quarto doc is the
 parameterization demo (multiple fiscal periods → multiple self-contained
 reports). **opsgov_incidents** is the real-data reference: it reads live from
 Postgres (requires a populated `.env`, see `.env.example`) and renders with
-`ReportSpec.synthetic=False` — no illustrative-data marker.
+`ReportSpec.synthetic=False` — no illustrative-data marker. It is also the
+dashboard reference: two tabs (Overview; Priority & Risk), a date-range +
+priority/impact/change-request filter bar that re-slices every panel and KPI
+client-side — see [Three front ends](#three-front-ends-decks-docs-and-dashboards).
 
 More roles are straightforward to add — see [Make it yours](#make-it-yours)
 and the `odr-new-domain` skill.
@@ -180,11 +187,11 @@ Browse them rendered, each with its source, in **`viz_catalog.html`**
 
 ---
 
-## Two front ends: decks and docs
+## Three front ends: decks, docs, and dashboards
 
 A report is **declarative data**, not code: a `ReportSpec` is an ordered list of
 `SectionSpec`s (`title`, `section`, `chart`, `chart_grid`, `prose`, `kpi_row`,
-`disclaimer`). The *same* spec drives both renderers:
+`disclaimer`). The *same* spec drives both linear renderers:
 
 - **`odrkit.deck.build_deck`** — scroll-snap slides, one viewport each: black
   title slide, chart slides, KPI rows, a `CONFIDENTIAL | Ops Data Reporter` + slide-number footer, and a final verbatim-disclaimer slide.
@@ -193,6 +200,32 @@ A report is **declarative data**, not code: a `ReportSpec` is an ordered list of
   KPI cards, and the disclaimer + synthetic marker in the footer.
 
 Both are a single self-contained HTML file (data embedded, Plotly from CDN).
+
+### The third front end: a filterable dashboard
+
+**`odrkit.dashboard.build_dashboard`** renders a parallel declarative spec —
+`DashboardSpec` (`TabSpec -> GroupSpec` of either a `kpi_row` or a `grid` of
+`PanelSpec`, plus a list of `FilterSpec`) — into a single-page dashboard: tabs
+of grouped chart panels and KPI cards, with a sticky filter bar (date range +
+categorical multiselects/dropdowns) above them.
+
+Every panel's *initial* figure is built the normal way (the same
+`ChartSpec.build` call deck/doc use). Filtering then happens **entirely in
+the browser**: the dashboard embeds a row-level dataset (one row per record)
+as JSON, and each filterable panel/KPI row names a small JS reducer that
+re-derives its figure from the currently-filtered rows — a direct client-side
+port of the same Python shaper's grouping logic, so a filter interaction
+re-slices data the engine already computed rather than inventing a number.
+Because every filter starts "wide open," the first client-side pass on page
+load reproduces the server-rendered baseline exactly. No backend, no
+round-trip — open the HTML file and it works offline (once Plotly's CDN
+script has loaded once).
+
+See `opsgov_incidents.build_dashboard_spec` for the reference implementation:
+two tabs (Overview: headline KPIs, weekly volume, lifecycle funnel, backlog
+bridge; Priority & Risk: weekday×priority heatmap, resolution-time box plot,
+CI risk scatter), filtered by created-date range, priority, impact, and
+change-request linkage.
 
 ### Two doc engines, side by side — tradeoffs
 
@@ -279,6 +312,9 @@ engine, and safely extend it:
 - **Add a domain/role:** use **odr-new-domain**, or copy
   `odrkit/roles/corporate_finance.py` (the reference) and register it in
   `cli.py`.
+- **Add a dashboard to a role:** copy `opsgov_incidents.build_dashboard_spec`
+  (the reference) + its `shape_dashboard_rows`, and register it in `cli.py`'s
+  `_ROLE_DASHBOARD_BUILDERS`.
 
 ---
 

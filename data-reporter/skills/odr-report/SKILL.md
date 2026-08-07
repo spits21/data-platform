@@ -32,18 +32,22 @@ Map the request to three things:
   Do NOT guess a period that isn't in that list — `build-role` will raise a
   clear `ValueError` naming the valid ones if you do.
 - **format** — `deck` (scroll-snap slides, PowerPoint-style) or `doc`
-  (long-scroll document, Word-style). If the role has a Quarto `.qmd` under
-  `quarto/<role>/`, that's a third option for an offline, self-contained,
-  narrative-heavy render. Ask the user if it's genuinely ambiguous; default
-  to `deck` for "show me" requests and `doc` for "write up" / "report on"
-  requests.
+  (long-scroll document, Word-style). `dashboard` (tabbed, grouped panels
+  with live client-side filters — date range + categorical) is available for
+  roles wired into `_ROLE_DASHBOARD_BUILDERS` in `odrkit/cli.py` (check with
+  `uv run odr list-roles`, which shows available formats per role). If the
+  role has a Quarto `.qmd` under `quarto/<role>/`, that's a further option
+  for an offline, self-contained, narrative-heavy render. Ask the user if
+  it's genuinely ambiguous; default to `deck` for "show me" requests, `doc`
+  for "write up" / "report on" requests, and `dashboard` for "explore" /
+  "filter" / "let me slice this" requests.
 
 ## 2. Run the engine
 
 ```bash
 uv sync                                                              # first time / after pulling
 uv run odr doctor                                                    # confirm charts + roles are healthy
-uv run odr build-role --role <role> --format <deck|doc> --period <period>
+uv run odr build-role --role <role> --format <deck|doc|dashboard> --period <period>
 ```
 
 Omit `--out` to get the default path

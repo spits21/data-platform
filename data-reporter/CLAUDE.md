@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ops Data Reporter (ODR) is a general-purpose, ODR-branded reporting toolkit: a
 deterministic Python engine (`odrkit`) that builds interactive HTML
-decks/docs/Quarto reports from synthetic data, glued together by three Claude
-*skills* under `skills/`.
+decks/docs/dashboards/Quarto reports from synthetic data, glued together by
+three Claude *skills* under `skills/`.
 
 **The core split (read this before changing anything):** the engine (`odrkit`)
 is deterministic — same role + period + format always produces the same
@@ -32,12 +32,13 @@ uv run odr list-charts                                             # list the 16
 uv run odr list-roles                                              # list data roles + datasets under data/
 uv run odr build-role --role corporate_finance --format deck       # build a deck (--format doc for the long-scroll doc)
 uv run odr build-role --role opsgov_incidents --format doc --period 2026-Q1
+uv run odr build-role --role opsgov_incidents --format dashboard --period 2026-Q1   # tabbed, filterable dashboard
 uv run odr viz-catalog                                             # render every chart + its source into viz_catalog.html
 ```
 
 Authored roles (have a report builder wired in `odrkit/cli.py`):
-`corporate_finance` (synthetic data) and `opsgov_incidents` (real data — see
-below).
+`corporate_finance` (synthetic data, deck + doc) and `opsgov_incidents` (real
+data — see below; deck + doc + dashboard).
 
 There is no test suite / pytest. Correctness is verified by:
 - `ChartSpec.self_test()` (each chart builds from its own `sample()` and
@@ -77,10 +78,12 @@ odrkit/
 ├── report_spec.py       ReportSpec / SectionSpec — the declarative report format shared by deck + doc
 ├── deck.py + templates/deck.html.j2    scroll-snap slide renderer
 ├── doc.py + templates/doc.html.j2      long-scroll doc renderer
-├── roles/<role>.py      one module per business domain: data shapers + build_report_spec() + build_registry()
+├── dashboard_spec.py    DashboardSpec / TabSpec / GroupSpec / PanelSpec / FilterSpec — the declarative dashboard format
+├── dashboard.py + templates/dashboard.html.j2   tabbed, filterable dashboard renderer (see Dashboard section below)
+├── roles/<role>.py      one module per business domain: data shapers + build_report_spec() + build_registry() (+ build_dashboard_spec() for roles with a dashboard)
 ├── data.py               duckdb-backed parquet/CSV loader for data/<role>/
 ├── content/               verbatim legal disclaimer + synthetic-data notice (never edit/paraphrase)
-└── cli.py                 the `odr` console entry point; _ROLE_BUILDERS wires each role in
+└── cli.py                 the `odr` console entry point; _ROLE_BUILDERS / _ROLE_DASHBOARD_BUILDERS wire each role in
 ```
 
 ### The ChartSpec contract (`odrkit/charts/_base.py`)
@@ -122,6 +125,40 @@ Each role exposes `build_report_spec(period)` and `build_registry(period)`;
 
 No metric is ever invented — every KPI and every narrative number is computed
 from the role's data shapers, never hand-typed into a template or by an LLM.
+
+### Dashboards (`odrkit/dashboard.py`, `odrkit/dashboard_spec.py`)
+
+A third front end alongside deck/doc: a single HTML page with tabs of
+grouped chart panels + KPI cards, and a filter bar (date range +
+categorical) that re-slices every panel and KPI **client-side**, with no
+server round-trip. A `DashboardSpec` (`odrkit/dashboard_spec.py`) is
+`TabSpec -> GroupSpec (kpi_row | grid of PanelSpec) `, plus a list of
+`FilterSpec`. Each panel's *initial* figure is built the normal way — same
+`registry[chart_id].build(spec.sample(), **cfg)` call as deck/doc, so the
+baseline numbers are exactly as trustworthy.
+
+The filtering itself works by embedding a **row-level** dataset (one row per
+record, e.g. one per incident) as JSON in the page — a role's
+`shape_dashboard_rows(period)`, distinct from the pre-aggregated per-chart
+shapes used by the registry — plus a small JS reducer per filterable panel
+(`RECOMPUTE` in `dashboard.html.j2`) and per KPI row (`KPI_RECOMPUTE`).
+`PanelSpec.recompute` / `GroupSpec.kpi_recompute` name which reducer applies;
+each reducer is a **direct client-side port of the matching Python shaper's
+grouping logic** (see the comment above each JS reducer naming its shaper) —
+so a filter interaction re-slices data the engine already computed, it never
+invents a number. Because every filter starts "wide open" (all options
+selected, full date extent), the first client-side pass on page load
+reproduces the server-rendered baseline exactly — a live self-check, not a
+separate computation path. Panels without a `recompute` name are static
+(their server-rendered figure doesn't respond to filters).
+
+Adding a dashboard to a role: write `shape_dashboard_rows(period)` (row-level,
+matching the columns your `FilterSpec`s and JS reducers need), `FILTERS`
+(`FilterSpec` list), a `build_dashboard_spec(period)` (reusing the role's
+existing `build_registry(period)` for panel figures), then wire it into
+`odrkit/cli.py`'s `_ROLE_DASHBOARD_BUILDERS`. `build-role --format dashboard`
+picks it up; `odr doctor` validates it the same way it validates deck/doc
+specs.
 
 ### Data (`odrkit/data.py`, `data/<role>/`)
 
