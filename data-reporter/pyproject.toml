@@ -1,0 +1,33 @@
+[project]
+name = "odrkit"
+version = "0.1.0"
+description = "Ops Data Reporter — deterministic reporting engine (odrkit) + odr CLI"
+requires-python = ">=3.11"
+dependencies = [
+    "plotly>=5.24,<6",
+    "jinja2>=3.1",
+    "click>=8.1",
+    "pandas>=2.2",
+    "duckdb>=1.0",
+    "pyarrow>=17.0",
+    "numpy>=1.26",
+    "markdown>=3.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+quarto = [
+    "papermill>=2.6",
+    "jupyter>=1.0",
+    "ipykernel>=6.29",
+]
+
+[project.scripts]
+odr = "odrkit.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["odrkit"]

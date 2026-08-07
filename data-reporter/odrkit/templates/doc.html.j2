@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ doc_title }} — Ops Data Reporter</title>
+<script src="{{ plotly_cdn }}"></script>
+<style>
+{{ css_vars }}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+
+.layout { display: grid; grid-template-columns: 15rem 1fr; max-width: 74rem; margin: 0 auto; }
+
+.toc {
+  position: sticky; top: 0; align-self: start; height: 100dvh; overflow-y: auto;
+  padding: 2rem 1.2rem; border-right: 1px solid var(--border);
+}
+.toc .toc-brand { font-weight: 700; letter-spacing: 0.03rem; margin-bottom: 1.4rem; color: var(--odr-black); }
+.toc .toc-brand .cyan { color: var(--odr-cyan); }
+.toc nav a {
+  display: block; padding: 0.35rem 0.6rem; margin-bottom: 0.1rem; font-size: 0.85rem;
+  color: var(--text-dim); text-decoration: none; border-left: 3px solid transparent;
+}
+.toc nav a:hover { color: var(--odr-dark-teal); }
+.toc nav a.active { border-left: 3px solid var(--odr-cyan); color: var(--odr-dark-teal); font-weight: 600; }
+
+.main { padding: 2rem 3rem 4rem; min-width: 0; }
+
+.odr-letterhead {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding-bottom: 1.2rem; margin-bottom: 1.5rem; border-bottom: 3px solid var(--odr-cyan);
+}
+.odr-letterhead .confidential { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04rem; color: var(--text-dim); text-transform: uppercase; }
+
+.title-block h1 { font-size: 2.4rem; margin: 0.2rem 0 0.6rem; color: var(--odr-black); }
+.title-block .eyebrow { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06rem; text-transform: uppercase; color: var(--odr-dark-teal); }
+.title-block .subtitle { font-size: 1.1rem; color: var(--text-dim); max-width: 42rem; }
+.title-block .id-badge {
+  margin-top: 1rem; font-size: 0.72rem; letter-spacing: 0.05rem; color: var(--odr-dark-teal);
+  text-transform: uppercase; border: 1px solid var(--odr-cyan); padding: 0.3rem 0.7rem; display: inline-block;
+}
+
+section.doc-section { margin: 3rem 0; scroll-margin-top: 1rem; }
+section.doc-section .eyebrow { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06rem; text-transform: uppercase; color: var(--odr-dark-teal); margin-bottom: 0.2rem; }
+section.doc-section h2 {
+  font-size: 1.6rem; font-weight: 700; margin: 0 0 0.3rem; color: var(--odr-black);
+  text-decoration: underline; text-decoration-color: var(--odr-cyan);
+  text-underline-offset: 8px; text-decoration-thickness: 4px; display: inline-block;
+}
+section.doc-section .subtitle { color: var(--text-dim); font-size: 1rem; margin-bottom: 1rem; }
+
+.figures-stack { display: grid; gap: 1.4rem; }
+.figures-stack.grid-2 { grid-template-columns: 1fr 1fr; }
+@media (max-width: 900px) { .figures-stack.grid-2 { grid-template-columns: 1fr; } }
+.fig-wrap { border: 1px solid var(--border); padding: 0.6rem; }
+
+.caption { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+.kpi-strip { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.kpi { background: var(--bg-card); border: 2px solid var(--border); border-top: 3px solid var(--odr-cyan); padding: 1rem 1.4rem; min-width: 12rem; }
+.kpi .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03rem; margin-bottom: 0.3rem; }
+.kpi .value { font-size: 2rem; font-weight: 700; color: var(--odr-black); }
+.kpi .kpi-sub { font-size: 0.8rem; color: var(--odr-dark-teal); margin-top: 0.2rem; }
+
+.prose-body p { line-height: 1.7; color: var(--text-dim); }
+
+.code-drawer { margin-top: 0.8rem; font-size: 0.78rem; }
+.code-drawer summary { cursor: pointer; color: var(--odr-dark-teal); }
+.code-drawer pre { background: var(--bg-alt); border: 1px solid var(--border); padding: 0.8rem; overflow: auto; max-height: 30rem; }
+
+.chart-error { color: var(--odr-red); font-family: var(--font-mono); font-size: 0.85rem; padding: 1rem; border: 1px solid var(--odr-red); }
+
+.odr-disclaimer { margin-top: 3rem; padding-top: 1.5rem; border-top: 3px solid var(--border); }
+.odr-disclaimer h2 { text-decoration: none; font-size: 1.1rem; }
+.odr-disclaimer p { font-size: 0.72rem; color: var(--text-muted); text-align: justify; }
+.synthetic-marker { color: var(--odr-red); font-weight: 700; letter-spacing: 0.03rem; display: block; margin-bottom: 1rem; }
+
+footer.doc-footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.72rem; color: var(--text-muted); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="toc">
+    <div class="toc-brand">Ops Data <span class="cyan">Reporter</span></div>
+    <nav id="toc-nav">
+      {% for s in toc_sections %}
+      <a href="#{{ s.anchor }}" data-anchor="{{ s.anchor }}">{{ s.title }}</a>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  <main class="main">
+    <div class="odr-letterhead">
+      <div class="confidential">Confidential | Ops Data Reporter</div>
+    </div>
+
+    {% for section in sections %}
+      {% if section.kind == 'title' %}
+        <div class="title-block" id="{{ section.anchor }}">
+          <div class="eyebrow">{{ section.eyebrow }}</div>
+          <h1>{{ section.title }}</h1>
+          <div class="subtitle">{{ section.subtitle }}</div>
+          {% if id_badge %}<div class="id-badge">{{ id_badge }}</div>{% endif %}
+        </div>
+      {% elif section.kind == 'disclaimer' %}
+        <section class="doc-section odr-disclaimer" id="{{ section.anchor }}">
+          <div class="eyebrow">{{ section.eyebrow }}</div>
+          <h2>{{ section.title }}</h2>
+          {% if synthetic %}<span class="synthetic-marker">{{ synthetic_notice }}</span>{% endif %}
+          {% for para in disclaimer_paragraphs %}<p>{{ para }}</p>{% endfor %}
+        </section>
+      {% else %}
+        <section class="doc-section {{ section.css_class }}" id="{{ section.anchor }}">
+          {% if section.eyebrow %}<div class="eyebrow">{{ section.eyebrow }}</div>{% endif %}
+          {% if section.title %}<h2>{{ section.title }}</h2>{% endif %}
+          {% if section.subtitle %}<div class="subtitle">{{ section.subtitle }}</div>{% endif %}
+
+          {% if section.kind in ('chart', 'chart_grid') %}
+            <div class="figures-stack {{ 'grid-2' if section.figures_html|length > 1 else '' }}">
+              {% for fig_html in section.figures_html %}
+                <div class="fig-wrap">{{ fig_html | safe }}</div>
+              {% endfor %}
+            </div>
+            {% if section.body_html %}<div class="prose-body">{{ section.body_html | safe }}</div>{% endif %}
+          {% elif section.kind == 'kpi_row' %}
+            <div class="prose-body">{{ section.body_html | safe }}</div>
+          {% else %}
+            <div class="prose-body">{{ section.body_html | safe }}</div>
+          {% endif %}
+
+          {% if section.caption %}<div class="caption">{{ section.caption }}</div>{% endif %}
+          {% if section.code_html %}{{ section.code_html | safe }}{% endif %}
+        </section>
+      {% endif %}
+    {% endfor %}
+
+    <footer class="doc-footer">
+      <span>{{ copyright_line }}</span>
+      <span>{{ provenance_line }}</span>
+    </footer>
+  </main>
+</div>
+
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('#toc-nav a'));
+  var targets = links
+    .map(function (a) { return document.getElementById(a.getAttribute('data-anchor')); })
+    .filter(Boolean);
+
+  function setActive(anchor) {
+    links.forEach(function (a) {
+      a.classList.toggle('active', a.getAttribute('data-anchor') === anchor);
+    });
+  }
+
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) setActive(entry.target.id);
+    });
+  }, { rootMargin: '-10% 0px -70% 0px' });
+  targets.forEach(function (t) { observer.observe(t); });
+})();
+</script>
+</body>
+</html>

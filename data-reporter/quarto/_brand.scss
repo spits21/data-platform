@@ -1,0 +1,98 @@
+/*-- scss:defaults --*/
+// Generated from odrkit.theme.COLORS - do not hand-edit; rebrand in theme.py.
+$body-bg: #FFFFFF;
+$body-color: #000000;
+$font-family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+$font-family-monospace: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+$link-color: #235F73;       // dark_teal
+$link-hover-color: #71C5E8;      // cyan
+$border-radius: 0;                   // sharp corners everywhere
+$border-radius-sm: 0;
+$border-radius-lg: 0;
+$border-color: #E2E2E2;
+
+/*-- scss:rules --*/
+:root {
+  --odr-cyan: #71C5E8;
+  --odr-cyan-dim: rgba(113,197,232,0.12);
+  --odr-cyan-mid: rgba(113,197,232,0.25);
+  --odr-dark-teal: #235F73;
+  --odr-dark-teal-dim: rgba(35,95,115,0.12);
+  --odr-black: #000000;
+  --odr-white: #FFFFFF;
+  --odr-red: #D00218;
+  --odr-purple: #839AFF;
+  --odr-orange: #E87C1E;
+  --bg: #FFFFFF;
+  --bg-alt: #f5f5f5;
+  --bg-card: #f5f5f5;
+  --text: #000000;
+  --text-dim: #444444;
+  --text-muted: #888888;
+  --border: #E2E2E2;
+  --grid-line: rgba(0,0,0,0.08);
+  --actual-marker: #000000;
+  --economic-muted: #999999;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+body {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums; // tabular numerals for metrics/dates/IDs
+  -webkit-font-smoothing: antialiased;
+}
+
+// ODR cyan underline motif on h2
+h2 {
+  font-weight: 700;
+  color: var(--odr-black);
+  text-decoration: underline;
+  text-decoration-color: var(--odr-cyan);
+  text-underline-offset: 8px;
+  text-decoration-thickness: 4px;
+}
+
+h3 { font-weight: 600; color: var(--odr-dark-teal); text-decoration: none; }
+
+// Sharp corners everywhere (single documented exception: Quarto TOC pill toggle)
+.card, .control-group, .kpi-card, .callout, pre, code, .sourceCode,
+input, select, button, .btn { border-radius: 0; }
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-top: 3px solid var(--odr-cyan);
+}
+
+// Active TOC link: cyan left border
+#TOC a.active, .sidebar nav a.active, nav[role="doc-toc"] a.active {
+  border-left: 3px solid var(--odr-cyan);
+  color: var(--odr-dark-teal);
+  font-weight: 600;
+}
+
+// Letterhead (right-aligned logo, cyan bottom border)
+.odr-letterhead {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  padding-bottom: 1.2rem; margin-bottom: 1.5rem;
+  border-bottom: 3px solid var(--odr-cyan);
+}
+.odr-letterhead img { height: 56px; width: auto; flex-shrink: 0; }
+
+// Legal disclaimer (h2 underline suppressed here)
+.odr-disclaimer {
+  margin-top: 3rem; padding-top: 1.5rem;
+  border-top: 3px solid var(--border);
+}
+.odr-disclaimer h2 { text-decoration: none; font-size: 1.1rem; }
+.odr-disclaimer p { font-size: 0.72rem; color: var(--text-muted); text-align: justify; }
+
+// Synthetic-data marker (required on every synthetic artifact)
+.synthetic-marker { color: var(--red); font-weight: 700; letter-spacing: 0.03rem; }
+
+// Confidentiality marker (matches the deck/doc "CONFIDENTIAL | ODR" footer)
+.confidential {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04rem;
+  color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.4rem;
+}

@@ -1,0 +1,19 @@
+project:
+  type: default
+  output-dir: ../artifacts
+
+format:
+  html:
+    theme: [cosmo, _brand.scss]
+    embed-resources: true
+    toc: true
+    toc-location: left
+    code-fold: true
+    page-layout: article
+    grid:
+      body-width: 900px
+
+jupyter: python3
+execute:
+  echo: false
+  warning: false

@@ -1,0 +1,116 @@
+---
+title: "Corporate Finance — Quarterly Business Review"
+subtitle: "FP&A · Ops Data Reporter"
+params:
+  period: "2026-Q1"
+format:
+  html:
+    embed-resources: true
+---
+
+```{python}
+#| tags: ["parameters"]
+period = "2026-Q1"
+```
+
+```{python}
+#| output: false
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path.cwd().resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from odrkit.roles import corporate_finance as cf
+from odrkit.charts import REGISTRY
+from odrkit.content import disclaimer_paragraphs, synthetic_notice
+```
+
+::: {.odr-letterhead}
+<div class="confidential">Confidential | Ops Data Reporter</div>
+:::
+
+```{python}
+#| output: asis
+print(f'<span class="synthetic-marker">{synthetic_notice()}</span>')
+print(f"\n**Fiscal quarter:** {period}\n")
+```
+
+## Executive Summary
+
+```{python}
+#| output: asis
+print(cf.build_narrative(period))
+```
+
+## Headline KPIs
+
+```{python}
+#| output: asis
+kpis = cf.shape_kpis(period)
+cards = "".join(
+    f'<div class="kpi"><div class="label">{k.label}</div>'
+    f'<div class="value">{k.value}</div>'
+    f'<div class="kpi-sub">{k.sub}</div></div>'
+    for k in kpis
+)
+print(f'<div class="kpi-strip">{cards}</div>')
+```
+
+## Revenue & EBITDA Trend
+
+Trailing `{python} cf.TRAILING_QUARTERS` quarters ending `{python} period`.
+
+```{python}
+#| echo: true
+df = cf.shape_revenue_trend(period)
+fig = REGISTRY["timeseries_multi"].build(df, y_title="$M", metric_name="")
+fig
+```
+
+## Operating Expense by Category
+
+```{python}
+#| echo: true
+df = cf.shape_opex_breakdown(period)
+fig = REGISTRY["grouped_stacked_bar"].build(df, mode="stacked", y_title="$M")
+fig
+```
+
+## Revenue by Segment
+
+```{python}
+#| echo: true
+df = cf.shape_segment_mix(period)
+fig = REGISTRY["treemap"].build(df, value_title="$M", root_label=f"{period} Revenue")
+fig
+```
+
+## Budget vs. Actual Bridge
+
+```{python}
+#| echo: true
+df = cf.shape_budget_bridge(period)
+fig = REGISTRY["waterfall"].build(df, mode="variance", y_title="$M")
+fig
+```
+
+## Margin Trend
+
+```{python}
+#| echo: true
+df = cf.shape_margin_heatmap(period)
+fig = REGISTRY["heatmap"].build(df, colorscale="odr", value_title="%")
+fig
+```
+
+::: {.odr-disclaimer}
+## Legal Notice & Limitations
+
+```{python}
+#| output: asis
+for p in disclaimer_paragraphs():
+    print(f"{p}\n")
+```
+:::
