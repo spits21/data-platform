@@ -1,18 +1,22 @@
 """odrkit.cli — the ``odr`` command-line entry point.
 
 Commands: ``doctor``, ``list-charts``, ``list-roles``, ``build-role``,
-``viz-catalog``. ``_ROLE_BUILDERS`` is the wiring point for new roles: add an
-entry here (plus ``_ROLE_DEFAULT_PERIOD``) to register a role module with
-``build-role``.
+``describe-role``, ``viz-catalog``, ``ui``. ``_ROLE_BUILDERS`` is the wiring
+point for new roles: add an entry here (plus ``_ROLE_DEFAULT_PERIOD``) to
+register a role module with ``build-role``.
 """
 
 from __future__ import annotations
 
+import dataclasses
+import inspect
+import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import click
+import pandas as pd
 
 from . import dashboard as dashboard_mod
 from . import data as data_mod
@@ -226,6 +230,98 @@ def build_role(role: str, fmt: str, period: str | None, out_path: str | None) ->
             written = doc_mod.build_doc(spec, out_path, registry=registry)
 
     click.echo(f"wrote {written}")
+
+
+# ---------------------------------------------------------------------------
+# describe-role — curated, allow-listable data-question access (no raw SQL,
+# no MCP; see ui/README.md's Security section for why this exists: it's the
+# sandboxed chat UI's replacement for ad hoc `python -c` shaper calls).
+# ---------------------------------------------------------------------------
+
+def _role_module(role: str):
+    """Resolve a role's module from whichever builder dict has it — same
+    ``sys.modules[fn.__module__]`` trick already used in
+    ``ui/backend/roles.py``, so role-module resolution isn't duplicated a
+    third way."""
+    spec_fn = None
+    if role in _ROLE_BUILDERS:
+        spec_fn = _ROLE_BUILDERS[role][0]
+    elif role in _ROLE_DASHBOARD_BUILDERS:
+        spec_fn = _ROLE_DASHBOARD_BUILDERS[role][0]
+    return sys.modules[spec_fn.__module__]
+
+
+def _discover_shapers(module) -> dict:
+    """Module-level ``shape_*``/``build_narrative`` functions whose first
+    parameter is literally ``period`` — the consistent convention across
+    every role module (verified against both corporate_finance.py and
+    opsgov_incidents.py)."""
+    fns = {}
+    for name, fn in inspect.getmembers(module, inspect.isfunction):
+        if not (name.startswith("shape_") or name == "build_narrative"):
+            continue
+        params = list(inspect.signature(fn).parameters)
+        if params and params[0] == "period":
+            fns[name] = fn
+    return dict(sorted(fns.items()))
+
+
+def _serialize_shaper_result(value):
+    if isinstance(value, pd.DataFrame):
+        return json.loads(value.to_json(orient="records"))
+    if isinstance(value, list) and value and dataclasses.is_dataclass(value[0]):
+        return [dataclasses.asdict(v) for v in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
+@main.command("describe-role")
+@click.option("--role", required=True, type=click.Choice(sorted(set(_ROLE_BUILDERS) | set(_ROLE_DASHBOARD_BUILDERS))))
+@click.option("--period", default=None, help="Defaults to the role's default period.")
+@click.option("--shaper", default=None, help="Run only this shaper (see --list). Omit to run all and print a full dump.")
+@click.option("--list", "list_only", is_flag=True, help="List available shapers for this role (with docstrings) and exit.")
+def describe_role(role: str, period: str | None, shaper: str | None, list_only: bool) -> None:
+    """Print a role's data-shaper outputs (KPIs, chart-shape data, narrative)
+    as JSON — the safe, allow-listed way to read numbers back from a role's
+    own tested shapers (never invented, never hand-computed) without
+    building a full report first."""
+    module = _role_module(role)
+    shapers = _discover_shapers(module)
+
+    if list_only:
+        for name, fn in shapers.items():
+            doc = inspect.getdoc(fn) or ""
+            click.echo(f"  {name}")
+            if doc:
+                for line in doc.splitlines():
+                    click.echo(f"      {line}")
+        return
+
+    period = period or _ROLE_DEFAULT_PERIOD[role]
+
+    # Not every shaper validates its period internally (corporate_finance's
+    # _trailing() does; opsgov_incidents' plain equality filter doesn't —
+    # it would silently return empty/zeroed results instead). Check once
+    # here, against each role's own available_periods(), so describe-role
+    # never reports a bad period as if it were real data.
+    available = module.available_periods()
+    if period not in available:
+        raise click.ClickException(
+            f"unknown period {period!r} for role {role!r}; available: {available}"
+        )
+
+    if shaper is not None:
+        if shaper not in shapers:
+            raise click.ClickException(
+                f"unknown shaper {shaper!r} for role {role!r} — see --list for available shapers"
+            )
+        result = shapers[shaper](period)
+        click.echo(json.dumps(_serialize_shaper_result(result), indent=2, default=str))
+        return
+
+    dump = {name: _serialize_shaper_result(fn(period)) for name, fn in shapers.items()}
+    click.echo(json.dumps(dump, indent=2, default=str))
 
 
 # ---------------------------------------------------------------------------

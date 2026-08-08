@@ -33,6 +33,8 @@ uv run odr list-roles                                              # list data r
 uv run odr build-role --role corporate_finance --format deck       # build a deck (--format doc for the long-scroll doc)
 uv run odr build-role --role opsgov_incidents --format doc --period 2026-Q1
 uv run odr build-role --role opsgov_incidents --format dashboard --period 2026-Q1   # tabbed, filterable dashboard
+uv run odr describe-role --role opsgov_incidents --period 2026-Q1 --list           # list a role's shapers (curated data-question access, no raw SQL)
+uv run odr describe-role --role opsgov_incidents --period 2026-Q1 --shaper shape_kpis
 uv run odr viz-catalog                                             # render every chart + its source into viz_catalog.html
 ```
 

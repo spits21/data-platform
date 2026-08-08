@@ -25,12 +25,13 @@ Map the request to three things:
 - **period** — a fiscal quarter like `2026-Q1`. If the user doesn't name one,
   use the role's default (see `uv run odr list-roles`, or read
   `_ROLE_DEFAULT_PERIOD` in `odrkit/cli.py`). To see what periods actually
-  have data, call the role module's `available_periods()` — e.g.:
-  ```bash
-  uv run python -c "from odrkit.roles import corporate_finance as r; print(r.available_periods())"
-  ```
-  Do NOT guess a period that isn't in that list — `build-role` will raise a
-  clear `ValueError` naming the valid ones if you do.
+  have data, run `uv run odr describe-role --role <role> --period <any-guess>
+  --list` — `describe-role` validates the period up front and, if it's
+  wrong, errors with the exact list of valid ones (so a first attempt with
+  the default period doubles as period discovery). Do NOT guess a period
+  and pass it straight to `build-role` without checking — `describe-role`'s
+  validation is the reliable one; not every role's `build-role` path
+  catches a bad period on its own.
 - **format** — `deck` (scroll-snap slides, PowerPoint-style) or `doc`
   (long-scroll document, Word-style). `dashboard` (tabbed, grouped panels
   with live client-side filters — date range + categorical) is available for
@@ -75,23 +76,25 @@ own directory first, per CLAUDE.md.
 ## 3. Read the output back — never invent a number
 
 After building, if you need to describe what the report says (KPIs, trends,
-narrative), get the numbers from the SAME shapers the report used, not by
-eyeballing the HTML or guessing:
+narrative) — or to answer an ad hoc data question that doesn't need a full
+report at all — get the numbers from the SAME shapers the report used, via
+`odr describe-role`, not by eyeballing the HTML or guessing:
 
 ```bash
-uv run python -c "
-from odrkit.roles import <role> as r
-print(r.build_narrative('<period>'))       # if the role has one
-for k in r.shape_kpis('<period>'):
-    print(k.label, k.value, k.sub)
-"
+uv run odr describe-role --role <role> --period <period> --list          # see available shapers + what each returns
+uv run odr describe-role --role <role> --period <period> --shaper shape_kpis
+uv run odr describe-role --role <role> --period <period>                 # no --shaper: full dump of every shaper
 ```
 
-Every role module's shapers (`odrkit/roles/<role>.py`) are plain functions
-you can call directly to inspect exactly what fed a chart or KPI card. This
-is the only legitimate source for any number you report to the user — the
-whole point of the engine/skill split (see CLAUDE.md) is that figures come
-from tested code, never from you reading a chart and estimating.
+Every role module's shapers (`odrkit/roles/<role>.py`) are plain
+period-parameterized functions; `describe-role` calls them directly and
+prints the result as JSON. This is the only legitimate source for any
+number you report to the user — the whole point of the engine/skill split
+(see CLAUDE.md) is that figures come from tested code, never from you
+reading a chart and estimating. (Don't reach for `uv run python -c "..."`
+instead — that's unrestricted code execution and isn't allowed in the
+sandboxed chat UI; `describe-role` is the allow-listed equivalent and
+works everywhere `odr` does.)
 
 ## 4. Real-data roles need credentials
 
