@@ -9,6 +9,7 @@ entry here (plus ``_ROLE_DEFAULT_PERIOD``) to register a role module with
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import click
@@ -61,14 +62,29 @@ def main() -> None:
 # doctor
 # ---------------------------------------------------------------------------
 
-@main.command()
-def doctor() -> None:
-    """Run environment, theme, chart self-test, and data checks."""
-    ok = True
+@dataclass
+class DoctorCheck:
+    """One doctor check result. ``detail`` is a free-text note: on PASS it's
+    shown parenthetically (e.g. period/dataset info); on FAIL it's the
+    exception repr. Shared by the ``doctor`` Click command and the UI's
+    ``GET /api/doctor`` endpoint so the check logic lives in exactly one
+    place."""
 
-    click.echo("== odrkit doctor ==")
+    name: str
+    passed: bool
+    detail: str = ""
 
-    # Theme sanity: apply_theme on a trivial figure must produce a themed layout.
+
+def run_doctor_checks() -> list[DoctorCheck]:
+    """Run every doctor check and return the results (no printing/exit).
+
+    Theme sanity, chart self-tests, then role + dashboard wiring checks.
+    Synthetic roles have local files under ``data/<role>/``; real-data roles
+    (see CLAUDE.md) have none and are checked by actually building the spec,
+    which exercises the live connection (e.g. Postgres) they read from.
+    """
+    checks: list[DoctorCheck] = []
+
     try:
         import plotly.graph_objects as go
 
@@ -76,27 +92,19 @@ def doctor() -> None:
         layout = fig.to_plotly_json()["layout"]
         assert layout.get("paper_bgcolor") == "rgba(0,0,0,0)"
         assert "colorway" in layout
-        click.echo(click.style("PASS", fg="green") + "  theme.apply_theme")
+        checks.append(DoctorCheck("theme.apply_theme", True))
     except Exception as exc:  # noqa: BLE001
-        ok = False
-        click.echo(click.style("FAIL", fg="red") + f"  theme.apply_theme: {exc!r}")
+        checks.append(DoctorCheck("theme.apply_theme", False, repr(exc)))
 
-    # Chart self-tests.
     if not CHART_REGISTRY:
-        ok = False
-        click.echo(click.style("FAIL", fg="red") + "  no charts registered under odrkit/charts/")
+        checks.append(DoctorCheck("no charts registered under odrkit/charts/", False))
     for cid, spec in CHART_REGISTRY.items():
         try:
             spec.self_test()
-            click.echo(click.style("PASS", fg="green") + f"  chart: {cid}")
+            checks.append(DoctorCheck(f"chart: {cid}", True))
         except Exception as exc:  # noqa: BLE001
-            ok = False
-            click.echo(click.style("FAIL", fg="red") + f"  chart: {cid}: {exc!r}")
+            checks.append(DoctorCheck(f"chart: {cid}", False, repr(exc)))
 
-    # Data + role wiring checks. Synthetic roles have local files under
-    # data/<role>/; real-data roles (see CLAUDE.md) have none and are
-    # checked by actually building the spec, which exercises the live
-    # connection (e.g. Postgres) they read from.
     for role, (spec_fn, registry_fn) in _ROLE_BUILDERS.items():
         period = _ROLE_DEFAULT_PERIOD.get(role)
         try:
@@ -106,16 +114,10 @@ def doctor() -> None:
             registry = registry_fn(period)
             issues = spec.validate(registry=registry)
             assert not issues, issues
-            click.echo(
-                click.style("PASS", fg="green")
-                + f"  role: {role} (period={period}, {source_note})"
-            )
+            checks.append(DoctorCheck(f"role: {role}", True, f"period={period}, {source_note}"))
         except Exception as exc:  # noqa: BLE001
-            ok = False
-            click.echo(click.style("FAIL", fg="red") + f"  role: {role}: {exc!r}")
+            checks.append(DoctorCheck(f"role: {role}", False, repr(exc)))
 
-    # Dashboard wiring checks: validates the DashboardSpec against its
-    # registry AND that the row-level filter dataset actually has rows.
     for role, (dash_spec_fn, dash_registry_fn, rows_fn) in _ROLE_DASHBOARD_BUILDERS.items():
         period = _ROLE_DEFAULT_PERIOD.get(role)
         try:
@@ -125,16 +127,28 @@ def doctor() -> None:
             assert not issues, issues
             rows = rows_fn(period)
             assert not rows.empty, "shape_dashboard_rows() returned an empty DataFrame"
-            click.echo(
-                click.style("PASS", fg="green")
-                + f"  dashboard: {role} (period={period}, rows={len(rows)})"
-            )
+            checks.append(DoctorCheck(f"dashboard: {role}", True, f"period={period}, rows={len(rows)}"))
         except Exception as exc:  # noqa: BLE001
-            ok = False
-            click.echo(click.style("FAIL", fg="red") + f"  dashboard: {role}: {exc!r}")
+            checks.append(DoctorCheck(f"dashboard: {role}", False, repr(exc)))
+
+    return checks
+
+
+@main.command()
+def doctor() -> None:
+    """Run environment, theme, chart self-test, and data checks."""
+    click.echo("== odrkit doctor ==")
+
+    checks = run_doctor_checks()
+    for c in checks:
+        style = click.style("PASS", fg="green") if c.passed else click.style("FAIL", fg="red")
+        if c.detail:
+            click.echo(f"{style}  {c.name}" + (f" ({c.detail})" if c.passed else f": {c.detail}"))
+        else:
+            click.echo(f"{style}  {c.name}")
 
     click.echo("====================")
-    if ok:
+    if all(c.passed for c in checks):
         click.echo(click.style("doctor: all checks passed", fg="green", bold=True))
     else:
         click.echo(click.style("doctor: FAILURES ABOVE", fg="red", bold=True))
@@ -249,6 +263,49 @@ def viz_catalog(out_path: str | None) -> None:
     out_path = Path(out_path) if out_path else _REPO_ROOT / "viz_catalog.html"
     written = doc_mod.build_doc(report, out_path)
     click.echo(f"wrote {written}")
+
+
+# ---------------------------------------------------------------------------
+# ui — local chat UI for business users (requires the "ui" extra)
+# ---------------------------------------------------------------------------
+
+@main.command("ui")
+@click.option("--port", default=8110, show_default=True, type=int, help="Port to serve on.")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Bind host. Only change this if you understand the security implications — see ui/README.md.")
+@click.option("--no-browser", is_flag=True, help="Don't automatically open a browser tab.")
+def ui(port: int, host: str, no_browser: bool) -> None:
+    """Start the local ODR chat UI (business-user front end for Claude Code).
+
+    Requires the "ui" extra: `uv sync --extra ui`. Also requires the
+    `claude` CLI to be installed and on PATH.
+    """
+    import os
+    import shutil
+
+    if shutil.which("claude") is None:
+        raise click.ClickException(
+            "The 'claude' CLI was not found on PATH. The ODR chat UI shells "
+            "out to Claude Code — install it and make sure `claude` runs "
+            "from a terminal, then try `odr ui` again."
+        )
+
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise click.ClickException(
+            "The 'ui' extra isn't installed. Run `uv sync --extra ui` first."
+        ) from exc
+
+    ui_dir = _REPO_ROOT / "ui"
+    if not ui_dir.exists():
+        raise click.ClickException(f"UI directory not found at {ui_dir}")
+
+    os.environ["ODR_UI_OPEN_BROWSER"] = "" if no_browser else "1"
+    os.environ["ODR_UI_HOST"] = host
+    os.environ["ODR_UI_PORT"] = str(port)
+
+    click.echo(f"Starting ODR chat UI on http://{host}:{port} ...")
+    uvicorn.run("backend.app:app", app_dir=str(ui_dir), host=host, port=port, log_level="info")
 
 
 if __name__ == "__main__":

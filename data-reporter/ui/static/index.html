@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ops Data Reporter — Chat</title>
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/assets/css/odr-ui.css">
+</head>
+<body>
+<div class="odr-letterhead">
+  <div class="confidential">Confidential | Ops Data Reporter</div>
+  <div id="doctor-pill" class="doctor-pill" title="">Checking status…</div>
+</div>
+
+<div class="title-block">
+  <div class="eyebrow">ODR</div>
+  <h1>Report Builder Chat</h1>
+  <div class="subtitle">Ask for a report in plain English, or click a skill / use Quick Build.</div>
+</div>
+
+<div class="ui-layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <h3>Skills</h3>
+      <div id="skills-list">Loading…</div>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Quick Build</h3>
+      <div class="qb-field">
+        <label class="field-label" for="qb-role">Role</label>
+        <select id="qb-role"></select>
+      </div>
+      <div class="qb-field">
+        <label class="field-label" for="qb-period">Period</label>
+        <select id="qb-period"></select>
+      </div>
+      <div class="qb-field">
+        <label class="field-label">Format</label>
+        <div id="qb-formats"></div>
+      </div>
+      <div id="qb-role-error"></div>
+      <button id="qb-build-btn" class="qb-build-btn" type="button">Build</button>
+    </div>
+
+    <div class="sidebar-section">
+      <h3>Recent Reports</h3>
+      <div id="artifacts-list">Loading…</div>
+    </div>
+  </aside>
+
+  <main class="chat-panel">
+    <div id="messages" class="messages"></div>
+    <div class="chat-input-bar">
+      <textarea id="chat-input" placeholder="Ask for a report, e.g. &quot;Build the opsgov_incidents dashboard for 2026-Q1&quot;"></textarea>
+      <button id="send-btn" type="button">Send</button>
+      <button id="new-conversation-btn" type="button">New Conversation</button>
+    </div>
+  </main>
+</div>
+
+<script src="/assets/js/markdown.js"></script>
+<script src="/assets/js/sse.js"></script>
+<script src="/assets/js/chat.js"></script>
+<script src="/assets/js/app.js"></script>
+</body>
+</html>

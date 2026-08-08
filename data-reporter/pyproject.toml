@@ -21,6 +21,10 @@ quarto = [
     "jupyter>=1.0",
     "ipykernel>=6.29",
 ]
+ui = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+]
 
 [project.scripts]
 odr = "odrkit.cli:main"
